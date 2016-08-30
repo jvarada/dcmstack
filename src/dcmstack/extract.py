@@ -1,6 +1,8 @@
 """
 Extract meta data from a DICOM data set.
 """
+from __future__ import division, absolute_import, unicode_literals
+
 
 import struct
 import warnings
@@ -388,7 +390,7 @@ class MetaExtractor(object):
         # string. This may require us to make an assumption about whether the
         # value is signed or not, but this is unavoidable.
         if elem.VR in unpack_vr_map and isinstance(elem.value, str):
-            n_vals = len(elem.value)/struct.calcsize(unpack_vr_map[elem.VR])
+            n_vals = len(elem.value) // struct.calcsize(unpack_vr_map[elem.VR])
             if n_vals != elem.VM:
                 warnings.warn("The element's VM and the number of values do "
                               "not match.")
