@@ -2,23 +2,25 @@
 Stack DICOM datasets into volumes. The contents of this module are imported
 into the package namespace.
 """
-import warnings, re, dicom
-from copy import deepcopy
+import warnings
+import re
+import dicom
 import nibabel as nb
+import numpy as np
+from copy import deepcopy
 from nibabel.nifti1 import Nifti1Extensions
 from nibabel.spatialimages import HeaderDataError
-from nibabel.orientations import (io_orientation,
-                                  apply_orientation,
-                                  inv_ornt_aff)
-import numpy as np
+from nibabel.orientations import io_orientation, apply_orientation, inv_ornt_aff
 from .dcmmeta import DcmMetaExtension, NiftiWrapper
+
 
 with warnings.catch_warnings():
     warnings.simplefilter('ignore')
     from nibabel.nicom.dicomwrappers import wrapper_from_data
 
+
 def make_key_regex_filter(exclude_res, force_include_res=None):
-    '''Make a meta data filter using regular expressions.
+    """Make a meta data filter using regular expressions.
 
     Parameters
     ----------
@@ -33,7 +35,7 @@ def make_key_regex_filter(exclude_res, force_include_res=None):
     Returns
     -------
     A callable which can be passed to `DicomStack` as the `meta_filter`.
-    '''
+    """
     exclude_re = re.compile('|'.join(['(?:' + regex + ')'
                                       for regex in exclude_res])
                            )
@@ -48,51 +50,57 @@ def make_key_regex_filter(exclude_res, force_include_res=None):
                 not (include_re and include_re.search(key)))
     return key_regex_filter
 
-default_key_excl_res = ['Patient',
-                        'Physician',
-                        'Operator',
-                        'Date',
-                        'Birth',
-                        'Address',
-                        'Institution',
-                        'Station',
-                        'SiteName',
-                        'Age',
-                        'Comment',
-                        'Phone',
-                        'Telephone',
-                        'Insurance',
-                        'Religious',
-                        'Language',
-                        'Military',
-                        'MedicalRecord',
-                        'Ethnic',
-                        'Occupation',
-                        'Unknown',
-                        'PrivateTagData',
-                        'UID',
-                        'StudyDescription',
-                        'DeviceSerialNumber',
-                        'ReferencedImageSequence',
-                        'RequestedProcedureDescription',
-                        'PerformedProcedureStepDescription',
-                        'PerformedProcedureStepID',
-                       ]
-'''A list of regexes passed to `make_key_regex_filter` as `exclude_res` to
-create the `default_meta_filter`.'''
 
-default_key_incl_res = ['ImageOrientationPatient',
-                        'ImagePositionPatient',
-                       ]
-'''A list of regexes passed to `make_key_regex_filter` as `force_include_res`
-to create the `default_meta_filter`.'''
+# A list of regexes passed to `make_key_regex_filter` as `exclude_res` to
+# create the `default_meta_filter`.
+default_key_excl_res = [
+    'Patient',
+    'Physician',
+    'Operator',
+    'Date',
+    'Birth',
+    'Address',
+    'Institution',
+    'Station',
+    'SiteName',
+    'Age',
+    'Comment',
+    'Phone',
+    'Telephone',
+    'Insurance',
+    'Religious',
+    'Language',
+    'Military',
+    'MedicalRecord',
+    'Ethnic',
+    'Occupation',
+    'Unknown',
+    'PrivateTagData',
+    'UID',
+    'StudyDescription',
+    'DeviceSerialNumber',
+    'ReferencedImageSequence',
+    'RequestedProcedureDescription',
+    'PerformedProcedureStepDescription',
+    'PerformedProcedureStepID',
+]
 
+
+# A list of regexes passed to `make_key_regex_filter` as `force_include_res`
+# to create the `default_meta_filter`.
+default_key_incl_res = [
+    'ImageOrientationPatient',
+    'ImagePositionPatient',
+]
+
+
+# Default meta_filter for `DicomStack`.
 default_meta_filter = make_key_regex_filter(default_key_excl_res,
                                             default_key_incl_res)
-'''Default meta_filter for `DicomStack`.'''
+
 
 def ornt_transform(start_ornt, end_ornt):
-    '''Return the orientation that transforms from `start_ornt` to `end_ornt`.
+    """Return the orientation that transforms from `start_ornt` to `end_ornt`.
 
     Parameters
     ----------
@@ -106,7 +114,7 @@ def ornt_transform(start_ornt, end_ornt):
     -------
     orientations : (p, 2) ndarray
        The orientation that will transform the `start_ornt` to the `end_ornt`.
-    '''
+    """
     start_ornt = np.asarray(start_ornt)
     end_ornt = np.asarray(end_ornt)
     if start_ornt.shape != end_ornt.shape:
@@ -128,6 +136,7 @@ def ornt_transform(start_ornt, end_ornt):
             raise ValueError("Unable to find out axis %d in start_ornt" %
                              end_out_idx)
     return result
+
 
 def axcodes2ornt(axcodes, labels=None):
     """ Convert axis codes `axcodes` to an orientation
@@ -171,8 +180,9 @@ def axcodes2ornt(axcodes, labels=None):
                 break
     return ornt
 
+
 def reorder_voxels(vox_array, affine, voxel_order):
-    '''Reorder the given voxel array and corresponding affine.
+    """Reorder the given voxel array and corresponding affine.
 
     Parameters
     ----------
@@ -201,8 +211,8 @@ def reorder_voxels(vox_array, affine, voxel_order):
     ornt_trans : tuple
         The orientation transform used to update the orientation.
 
-    '''
-    #Check if voxel_order is valid
+    """
+    # Check if voxel_order is valid
     voxel_order = voxel_order.upper()
     if len(voxel_order) != 3:
         raise ValueError('The voxel_order must contain three characters')
@@ -218,13 +228,13 @@ def reorder_voxels(vox_array, affine, voxel_order):
         raise ValueError('No character in voxel_order corresponding to '
                          'axes: %s' % dcm_axes)
 
-    #Check the vox_array and affine have correct shape/size
+    # Check the vox_array and affine have correct shape/size
     if len(vox_array.shape) < 3:
         raise ValueError('The vox_array must be at least three dimensional')
     if affine.shape != (4, 4):
         raise ValueError('The affine must be 4x4')
 
-    #Pull the current index directions from the affine
+    # Pull the current index directions from the affine
     orig_ornt = io_orientation(affine)
     new_ornt = axcodes2ornt(voxel_order)
     ornt_trans = ornt_transform(orig_ornt, new_ornt)
@@ -235,8 +245,9 @@ def reorder_voxels(vox_array, affine, voxel_order):
 
     return (vox_array, affine, aff_trans, ornt_trans)
 
+
 def dcm_time_to_sec(time_str):
-    '''Convert a DICOM time value (value representation of 'TM') to the number
+    """Convert a DICOM time value (value representation of 'TM') to the number
     of seconds past midnight.
 
     Parameters
@@ -247,11 +258,11 @@ def dcm_time_to_sec(time_str):
     Returns
     -------
     A floating point representing the number of seconds past midnight
-    '''
-    #Allow ACR/NEMA style format by removing any colon chars
+    """
+    # Allow ACR/NEMA style format by removing any colon chars
     time_str = time_str.replace(':', '')
 
-    #Only the hours portion is required
+    # Only the hours portion is required
     result = int(time_str[:2]) * 3600
 
     str_len = len(time_str)
@@ -262,31 +273,35 @@ def dcm_time_to_sec(time_str):
 
     return float(result)
 
+
 class IncongruentImageError(Exception):
     def __init__(self, msg):
-        '''An exception denoting that a DICOM with incorrect size or orientation
-        was passed to `DicomStack.add_dcm`.'''
+        """An exception denoting that a DICOM with incorrect size or orientation
+        was passed to `DicomStack.add_dcm`."""
         self.msg = msg
 
     def __str__(self):
         return 'The image is not congruent to the existing stack: %s' % self.msg
 
+
 class ImageCollisionError(Exception):
-    '''An exception denoting that a DICOM which collides with one already in
-    the stack was passed to a `DicomStack.add_dcm`.'''
+    """An exception denoting that a DICOM which collides with one already in
+    the stack was passed to a `DicomStack.add_dcm`."""
     def __str__(self):
         return 'The image collides with one already in the stack'
 
+
 class InvalidStackError(Exception):
     def __init__(self, msg):
-        '''An exception denoting that a `DicomStack` is not currently valid'''
+        """An exception denoting that a `DicomStack` is not currently valid"""
         self.msg = msg
 
     def __str__(self):
         return 'The DICOM stack is not valid: %s' % self.msg
 
+
 class DicomOrdering(object):
-    '''Object defining an ordering for a set of dicom datasets. Create a
+    """Object defining an ordering for a set of dicom datasets. Create a
     DicomOrdering with the given DICOM element keyword.
 
     Parameters
@@ -302,7 +317,7 @@ class DicomOrdering(object):
     abs_as_str : bool
         If true, the values will be converted to strings before looking up
         the index in `abs_ordering`.
-    '''
+    """
 
     def __init__(self, key, abs_ordering=None, abs_as_str=False):
         self.key = key
@@ -310,7 +325,7 @@ class DicomOrdering(object):
         self.abs_as_str = abs_as_str
 
     def get_ordinate(self, ds):
-        '''Get the ordinate for the given DICOM data set.
+        """Get the ordinate for the given DICOM data set.
 
         Parameters
         ----------
@@ -324,7 +339,7 @@ class DicomOrdering(object):
         An ordinate for the data set. If `abs_ordering` is None then this will
         just be the value for the keyword `key`. Otherwise it will be an
         integer.
-        '''
+        """
         try:
             val = ds[self.key]
         except KeyError:
@@ -337,13 +352,14 @@ class DicomOrdering(object):
 
         return val
 
+
 def _make_dummy(reference, meta, iop):
-    '''Make a "dummy" NiftiWrapper (no valid pixel data).'''
-    #Create the dummy data array filled with largest representable value
+    """Make a "dummy" NiftiWrapper (no valid pixel data)."""
+    # Create the dummy data array filled with largest representable value
     data = np.empty_like(reference.nii_img.get_data())
     data[...] = np.iinfo(np.int16).max
 
-    #Create the nifti image and set header data
+    # Create the nifti image and set header data
     aff = reference.nii_img.get_affine().copy()
     aff[:3, 3] = [iop[1], iop[0], iop[2]]
     nii_img = nb.nifti1.Nifti1Image(data, aff)
@@ -362,22 +378,26 @@ def _make_dummy(reference, meta, iop):
             dim_info['freq'] = 1
     hdr.set_dim_info(**dim_info)
 
-    #Embed the meta data extension
+    # Embed the meta data extension
     result = NiftiWrapper(nii_img, make_empty=True)
     result.meta_ext.reorient_transform = np.diag([-1., -1., 1., 1.])
     result.meta_ext.get_class_dict(('global', 'const')).update(meta)
 
     return result
 
-default_group_keys =  ('SeriesInstanceUID',
-                       'SeriesNumber',
-                       'ProtocolName',
-                       'ImageOrientationPatient')
-'''Default keys for grouping DICOM files that belong in the same
-multi-dimensional array together.'''
+
+# Default keys for grouping DICOM files that belong in the same
+# multi-dimensional array together.
+default_group_keys = (
+    'SeriesInstanceUID',
+    'SeriesNumber',
+    'ProtocolName',
+    'ImageOrientationPatient'
+)
+
 
 class DicomStack(object):
-    '''Defines a method for stacking together DICOM data sets into a multi
+    """Defines a method for stacking together DICOM data sets into a multi
     dimensional volume.
 
     Tailored towards creating NiftiImage output, but can also just create numpy
@@ -407,34 +427,37 @@ class DicomStack(object):
     -----
     If both time_order and vector_order are None, the time_order will be
     guessed based off the data sets.
-    '''
+    """
 
-    sort_guesses = ['EchoTime',
-                    'InversionTime',
-                    'RepetitionTime',
-                    'FlipAngle',
-                    'TriggerTime',
-                    'AcquisitionTime',
-                    'ContentTime',
-                    'AcquisitionNumber',
-                    'InstanceNumber',
-                   ]
-    '''The meta data keywords used when trying to guess the sorting order.
-    Keys that come earlier in the list are given higher priority.'''
+    # The meta data keywords used when trying to guess the sorting order.
+    # Keys that come earlier in the list are given higher priority.
+    sort_guesses = [
+        'EchoTime',
+        'InversionTime',
+        'RepetitionTime',
+        'FlipAngle',
+        'TriggerTime',
+        'AcquisitionTime',
+        'ContentTime',
+        'AcquisitionNumber',
+        'InstanceNumber',
+    ]
 
-    minimal_keys = set(sort_guesses +
-                       ['Rows',
-                        'Columns',
-                        'PixelSpacing',
-                        'ImageOrientationPatient',
-                        'InPlanePhaseEncodingDirection',
-                        'RepetitionTime',
-                        'AcquisitionTime'
-                       ] +
-                       list(default_group_keys)
-                      )
-    '''Set of minimal meta data keys that should be provided if they exist in
-    the source DICOM files.'''
+    # Set of minimal meta data keys that should be provided if they exist in
+    # the source DICOM files.
+    minimal_keys = set(
+        sort_guesses +
+        [
+            'Rows',
+            'Columns',
+            'PixelSpacing',
+            'ImageOrientationPatient',
+            'InPlanePhaseEncodingDirection',
+            'RepetitionTime',
+            'AcquisitionTime'
+        ] +
+        list(default_group_keys)
+    )
 
     def __init__(self, time_order=None, vector_order=None,
                  allow_dummies=False, meta_filter=None):
@@ -454,7 +477,7 @@ class DicomStack(object):
 
         self._allow_dummies = allow_dummies
 
-        #Sets all the state variables to their defaults
+        # Sets all the state variables to their defaults
         self.clear()
 
     def _chk_equal(self, keys, meta1, meta2):
@@ -489,9 +512,8 @@ class DicomStack(object):
                            )
         return is_dummy
 
-
     def add_dcm(self, dcm, meta=None):
-        '''Add a pydicom dataset to the stack.
+        """Add a pydicom dataset to the stack.
 
         Parameters
         ----------
@@ -512,7 +534,7 @@ class DicomStack(object):
             The provided `dcm` has the same slice location and time/vector
             values.
 
-        '''
+        """
         if meta is None:
             from .extract import default_extractor
             meta = default_extractor(dcm)
@@ -524,7 +546,7 @@ class DicomStack(object):
         self._phase_enc_dirs.add(meta.get('InPlanePhaseEncodingDirection'))
         self._repetition_times.add(meta.get('RepetitionTime'))
 
-        #Pull the info used for sorting
+        # Pull the info used for sorting
         slice_pos = dw.slice_indicator
         self._slice_pos_vals.add(slice_pos)
         time_val = None
@@ -536,11 +558,11 @@ class DicomStack(object):
             vector_val = self._vector_order.get_ordinate(meta)
         self._vector_vals.add(vector_val)
 
-        #Create a tuple with the sorting values
+        # Create a tuple with the sorting values
         sorting_tuple = (vector_val, time_val, slice_pos)
 
-        #If a explicit order was specified, raise an exception if image
-        #collides with another already in the stack
+        # If a explicit order was specified, raise an exception if image
+        # collides with another already in the stack
         if ((not self._time_order is None or
              not self._vector_order is None) and
             sorting_tuple in self._sorting_tuples
@@ -548,35 +570,35 @@ class DicomStack(object):
             raise ImageCollisionError()
         self._sorting_tuples.add(sorting_tuple)
 
-        #Create a NiftiWrapper for this input if possible
+        # Create a NiftiWrapper for this input if possible
         nii_wrp = None
         if not is_dummy:
             nii_wrp = NiftiWrapper.from_dicom_wrapper(dw, meta)
             if self._ref_input is None:
-                #We don't have a reference input yet, use this one
+                # We don't have a reference input yet, use this one
                 self._ref_input = nii_wrp
-                #Convert any dummies that we have stashed previously
+                # Convert any dummies that we have stashed previously
                 for dummy_meta, dummy_tuple, iop in self._dummies:
                     dummy_wrp = _make_dummy(self._ref_input, dummy_meta, iop)
                     self._files_info.append((dummy_wrp, dummy_tuple))
         else:
             if self._ref_input is None:
-                #We don't have a reference input, so stash the dummy for now
+                # We don't have a reference input, so stash the dummy for now
                 self._dummies.append((meta, sorting_tuple, dcm.ImagePositionPatient))
             else:
-                #Convert dummy using the reference input
+                # Convert dummy using the reference input
                 nii_wrp = _make_dummy(self._ref_input, meta, dcm.ImagePositionPatient)
 
-        #If we made a NiftiWrapper add it to the stack
+        # If we made a NiftiWrapper add it to the stack
         if not nii_wrp is None:
             self._files_info.append((nii_wrp, sorting_tuple))
 
-        #Set the dirty flags
+        # Set the dirty flags
         self._shape_dirty = True
         self._meta_dirty = True
 
     def clear(self):
-        '''Remove any DICOM datasets from the stack.'''
+        """Remove any DICOM datasets from the stack."""
         self._slice_pos_vals = set()
         self._time_vals = set()
         self._vector_vals = set()
@@ -598,7 +620,7 @@ class DicomStack(object):
 
     def _chk_order(self, slice_positions, files_per_vol, num_volumes,
                    num_time_points, num_vec_comps):
-        #Sort the files
+        # Sort the files
         self._files_info.sort(key=lambda x: x[1])
         if files_per_vol > 1:
             for vol_idx in range(num_volumes):
@@ -608,7 +630,7 @@ class DicomStack(object):
                     sorted(self._files_info[start_slice:end_slice],
                            key=lambda x: x[1][-1])
 
-        #Do a thorough check for correctness
+        # Do a thorough check for correctness
         for vec_idx in range(num_vec_comps):
             file_idx = vec_idx*num_time_points*files_per_vol
             curr_vec_val = self._files_info[file_idx][1][0]
@@ -636,7 +658,7 @@ class DicomStack(object):
 
 
     def get_shape(self):
-        '''Get the shape of the stack.
+        """Get the shape of the stack.
 
         Returns
         -------
@@ -646,20 +668,20 @@ class DicomStack(object):
         ------
         InvalidStackError
             The stack is incomplete or invalid.
-        '''
-        #If the dirty flag is not set, return the cached value
+        """
+        # If the dirty flag is not set, return the cached value
         if not self._shape_dirty:
             return self._shape
 
-        #We need at least one non-dummy file in the stack
+        # We need at least one non-dummy file in the stack
         if len(self._files_info) == 0:
             raise InvalidStackError("No (non-dummy) files in the stack")
 
-        #Figure out number of files and slices per volume
+        # Figure out number of files and slices per volume
         files_per_vol = len(self._slice_pos_vals)
         slice_positions = sorted(list(self._slice_pos_vals))
 
-        #If more than one file per volume, check that slice spacing is equal
+        # If more than one file per volume, check that slice spacing is equal
         if files_per_vol > 1:
             spacings = []
             for idx in range(files_per_vol - 1):
@@ -669,13 +691,13 @@ class DicomStack(object):
             if not np.allclose(avg_spacing, spacings, rtol=4e-2):
                 raise InvalidStackError("Slice spacings are not consistent")
 
-        #Simple check for an incomplete stack
+        # Simple check for an incomplete stack
         if len(self._files_info) % files_per_vol != 0:
             raise InvalidStackError("Number of files is not an even multiple "
                                     "of the number of unique slice positions.")
         num_volumes = len(self._files_info) / files_per_vol
 
-        #Figure out the number of vector components and time points
+        # Figure out the number of vector components and time points
         num_vec_comps = len(self._vector_vals)
         if num_vec_comps > num_volumes:
             raise InvalidStackError("Vector variable varies within volumes")
@@ -684,10 +706,10 @@ class DicomStack(object):
                                     "of the number of vector components.")
         num_time_points = num_volumes / num_vec_comps
 
-        #If both sort keys are None try to guess
+        # If both sort keys are None try to guess
         if (num_volumes > 1 and self._time_order is None and
                 self._vector_order is None):
-            #Get a list of possible sort orders
+            # Get a list of possible sort orders
             possible_orders = []
             for key in self.sort_guesses:
                 vals = set([file_info[0].get_meta(key)
@@ -699,9 +721,9 @@ class DicomStack(object):
                 raise InvalidStackError("Unable to guess key for sorting the "
                                         "fourth dimension")
 
-            #Try out each possible sort order
+            # Try out each possible sort order
             for time_order in possible_orders:
-                #Update sorting tuples
+                # Update sorting tuples
                 for idx in range(len(self._files_info)):
                     nii_wrp, curr_tuple = self._files_info[idx]
                     self._files_info[idx] = (nii_wrp,
@@ -711,7 +733,7 @@ class DicomStack(object):
                                              )
                                             )
 
-                #Check the order
+                # Check the order
                 try:
                     self._chk_order(slice_positions,
                                     files_per_vol,
@@ -725,14 +747,14 @@ class DicomStack(object):
             else:
                 raise InvalidStackError("Unable to guess key for sorting the "
                                         "fourth dimension")
-        else: #If at least on sort key was specified, just check the order
+        else:  # If at least on sort key was specified, just check the order
             self._chk_order(slice_positions,
                             files_per_vol,
                             num_volumes,
                             num_time_points,
                             num_vec_comps)
 
-        #Stack appears to be valid, build the shape tuple
+        # Stack appears to be valid, build the shape tuple
         file_shape = self._files_info[0][0].nii_img.get_shape()
         vol_shape = list(file_shape)
         if files_per_vol > 1:
@@ -748,7 +770,7 @@ class DicomStack(object):
         return self._shape
 
     def get_data(self):
-        '''Get an array of the voxel values.
+        """Get an array of the voxel values.
 
         Returns
         -------
@@ -758,19 +780,19 @@ class DicomStack(object):
         ------
         InvalidStackError
             The stack is incomplete or invalid.
-        '''
-        #Create a numpy array for storing the voxel data
+        """
+        # Create a numpy array for storing the voxel data
         stack_shape = self.get_shape()
         stack_shape = tuple(list(stack_shape) + ((5 - len(stack_shape)) * [1]))
         stack_dtype = self._files_info[0][0].nii_img.get_data_dtype()
-        #This is a hack to keep fslview happy, Shouldn't cause issues as the
-        #original data should be 12-bit and any scaling will result in float
-        #data
+        # This is a hack to keep fslview happy, Shouldn't cause issues as the
+        # original data should be 12-bit and any scaling will result in float
+        # data
         if stack_dtype == np.uint16:
             stack_dtype = np.int16
         vox_array = np.empty(stack_shape, dtype=stack_dtype)
 
-        #Fill the array with data
+        # Fill the array with data
         n_vols = 1
         if len(stack_shape) > 3:
             n_vols *= stack_shape[3]
@@ -791,7 +813,7 @@ class DicomStack(object):
                         vox_array[:, :, slice_idx, time_idx, vec_idx] = \
                             self._files_info[file_idx][0].nii_img.get_data()[:, :, 0]
 
-        #Trim unused time/vector dimensions
+        # Trim unused time/vector dimensions
         if stack_shape[4] == 1:
             vox_array = vox_array[...,0]
             if stack_shape[3] == 1:
@@ -800,7 +822,7 @@ class DicomStack(object):
         return vox_array
 
     def get_affine(self):
-        '''Get the affine transform for mapping row/column/slice indices
+        """Get the affine transform for mapping row/column/slice indices
         to Nifti (RAS) patient space.
 
         Returns
@@ -811,8 +833,8 @@ class DicomStack(object):
         ------
         InvalidStackError
             The stack is incomplete or invalid.
-        '''
-        #Figure out the number of three (or two) dimensional volumes
+        """
+        # Figure out the number of three (or two) dimensional volumes
         shape = self.get_shape()
         n_vols = 1
         if len(shape) > 3:
@@ -820,13 +842,13 @@ class DicomStack(object):
         if len(shape) > 4:
             n_vols *= shape[4]
 
-        #Figure out the number of files in each volume
+        # Figure out the number of files in each volume
         files_per_vol = len(self._files_info) / n_vols
 
-        #Pull the DICOM Patient Space affine from the first input
+        # Pull the DICOM Patient Space affine from the first input
         aff = self._files_info[0][0].nii_img.get_affine()
 
-        #If there is more than one file per volume, we need to fix slice scaling
+        # If there is more than one file per volume, we need to fix slice scaling
         if files_per_vol > 1:
             first_offset = aff[:3, 3]
             second_offset = self._files_info[1][0].nii_img.get_affine()[:3, 3]
@@ -836,7 +858,7 @@ class DicomStack(object):
         return aff
 
     def to_nifti(self, voxel_order='LAS', embed_meta=False):
-        '''Returns a NiftiImage with the data and affine from the stack.
+        """Returns a NiftiImage with the data and affine from the stack.
 
         Parameters
         ----------
@@ -852,12 +874,12 @@ class DicomStack(object):
         Returns
         -------
         A nibabel.nifti1.Nifti1Image created with the stack's data and affine.
-        '''
-        #Get the voxel data and affine
+        """
+        # Get the voxel data and affine
         data = self.get_data()
         affine = self.get_affine()
 
-        #Figure out the number of three (or two) dimensional volumes
+        # Figure out the number of three (or two) dimensional volumes
         n_vols = 1
         if len(data.shape) > 3:
             n_vols *= data.shape[3]
@@ -866,7 +888,7 @@ class DicomStack(object):
 
         files_per_vol = len(self._files_info) / n_vols
 
-        #Reorder the voxel data if requested
+        # Reorder the voxel data if requested
         permutation = [0, 1, 2]
         slice_dim = 2
         reorient_transform = np.eye(4)
@@ -878,8 +900,8 @@ class DicomStack(object):
             permutation, flips = list(zip(*ornt_trans))
             permutation = [int(val) for val in permutation]
 
-            #Reverse file order in each volume's files if we flipped slice order
-            #This will keep the slice times and meta data order correct
+            # Reverse file order in each volume's files if we flipped slice order
+            # This will keep the slice times and meta data order correct
             if files_per_vol > 1 and flips[slice_dim] == -1:
                 self._shape_dirty = True
                 for vol_idx in range(n_vols):
@@ -891,14 +913,14 @@ class DicomStack(object):
                                                                       -1)
                                                    ]
 
-            #Update the slice dim
+            # Update the slice dim
             slice_dim = permutation[2]
 
-        #Create the nifti image using the data array
+        # Create the nifti image using the data array
         nifti_image = nb.Nifti1Image(data, affine)
         nifti_header = nifti_image.get_header()
 
-        #Set the units and dimension info
+        # Set the units and dimension info
         nifti_header.set_xyzt_units('mm', 'msec')
         if len(self._repetition_times) == 1 and not None in self._repetition_times:
             nifti_header['pixdim'][4] = list(self._repetition_times)[0]
@@ -914,17 +936,16 @@ class DicomStack(object):
         nifti_header.set_dim_info(**dim_info)
         n_slices = data.shape[slice_dim]
 
-        #Set the slice timing header info
-        has_acq_time = (self._files_info[0][0].get_meta('AcquisitionTime') !=
-                        None)
+        # Set the slice timing header info
+        has_acq_time = (self._files_info[0][0].get_meta('AcquisitionTime') != None)
         if files_per_vol > 1 and has_acq_time:
-            #Pull out the relative slice times for the first volume
+            # Pull out the relative slice times for the first volume
             slice_times = np.array([dcm_time_to_sec(file_info[0]['AcquisitionTime'])
                                     for file_info in self._files_info[:n_slices]]
                                   )
             slice_times -= np.min(slice_times)
 
-            #If there is more than one volume, check if times are consistent
+            # If there is more than one volume, check if times are consistent
             is_consistent = True
             for vol_idx in range(1, n_vols):
                 start_slice = vol_idx * n_slices
@@ -939,17 +960,17 @@ class DicomStack(object):
                     is_consistent = False
                     break
 
-            #If the times are consistent and not all zero, try setting the slice
-            #times (sets the slice duration and code if possible).
+            # If the times are consistent and not all zero, try setting the slice
+            # times (sets the slice duration and code if possible).
             if is_consistent and not np.allclose(slice_times, 0.0):
                 try:
                     nifti_header.set_slice_times(slice_times)
                 except HeaderDataError:
                     pass
 
-        #Embed the meta data extension if requested
+        # Embed the meta data extension if requested
         if embed_meta:
-            #Build meta data for each volume if needed
+            # Build meta data for each volume if needed
             vol_meta = []
             if files_per_vol > 1:
                 for vol_idx in range(n_vols):
@@ -963,7 +984,7 @@ class DicomStack(object):
                 vol_meta = [file_info[0].meta_ext
                             for file_info in self._files_info]
 
-            #Build meta data for each time point / vector component
+            # Build meta data for each time point / vector component
             if len(data.shape) == 5:
                 if data.shape[3] != 1:
                     vec_meta = []
@@ -989,7 +1010,7 @@ class DicomStack(object):
             meta_ext.affine = nifti_header.get_best_affine()
             meta_ext.reorient_transform = reorient_transform
 
-            #Filter and embed the meta data
+            # Filter and embed the meta data
             meta_ext.filter_meta(self._meta_filter)
             nifti_header.extensions = Nifti1Extensions([meta_ext])
 
@@ -997,15 +1018,16 @@ class DicomStack(object):
         return nifti_image
 
     def to_nifti_wrapper(self, voxel_order=''):
-        '''Convienance method. Calls `to_nifti` and returns a `NiftiWrapper`
+        """Convienance method. Calls `to_nifti` and returns a `NiftiWrapper`
         generated from the result.
-        '''
+        """
         return NiftiWrapper(self.to_nifti(voxel_order, True))
+
 
 def parse_and_group(src_paths, group_by=default_group_keys, extractor=None,
                     force=False, warn_on_except=False,
                     close_tests=('ImageOrientationPatient',)):
-    '''Parse the given dicom files and group them together. Each group is
+    """Parse the given dicom files and group them together. Each group is
     stored as a (list) value in a dict where the key is a tuple of values
     corresponding to the keys in 'group_by'
 
@@ -1040,7 +1062,7 @@ def parse_and_group(src_paths, group_by=default_group_keys, extractor=None,
         A dict mapping tuples of values (corresponding to 'group_by') to groups
         of data sets. Each element in the list is a tuple containing the dicom
         object, the parsed meta data, and the filename.
-    '''
+    """
     if extractor is None:
         from .extract import default_extractor
         extractor = default_extractor
@@ -1048,7 +1070,7 @@ def parse_and_group(src_paths, group_by=default_group_keys, extractor=None,
     results = {}
     close_elems = {}
     for dcm_path in src_paths:
-        #Read the DICOM file
+        # Read the DICOM file
         try:
             dcm = dicom.read_file(dcm_path, force=force)
         except Exception as e:
@@ -1058,10 +1080,10 @@ def parse_and_group(src_paths, group_by=default_group_keys, extractor=None,
             else:
                 raise
 
-        #Extract the meta data and group
+        # Extract the meta data and group
         meta = extractor(dcm)
-        key_list = [] # Values from group_by elems with equality testing
-        close_list = [] # Values from group_by elems with np.allclose testing
+        key_list = []  # Values from group_by elems with equality testing
+        close_list = []  # Values from group_by elems with np.allclose testing
         for grp_key in group_by:
             key_elem = meta.get(grp_key)
             if isinstance(key_elem, list):
@@ -1108,6 +1130,7 @@ def parse_and_group(src_paths, group_by=default_group_keys, extractor=None,
 
     return full_results
 
+
 def stack_group(group, warn_on_except=False, **stack_args):
     result = DicomStack(**stack_args)
     for dcm, meta, fn in group:
@@ -1121,9 +1144,10 @@ def stack_group(group, warn_on_except=False, **stack_args):
                 raise
     return result
 
+
 def parse_and_stack(src_paths, group_by=default_group_keys, extractor=None,
                     force=False, warn_on_except=False, **stack_args):
-    '''Parse the given dicom files into a dictionary containing one or more
+    """Parse the given dicom files into a dictionary containing one or more
     DicomStack objects.
 
     Parameters
@@ -1149,7 +1173,7 @@ def parse_and_stack(src_paths, group_by=default_group_keys, extractor=None,
 
     stack_args : kwargs
         Keyword arguments to pass to the DicomStack constructor.
-    '''
+    """
     results = parse_and_group(src_paths,
                               group_by,
                               extractor,

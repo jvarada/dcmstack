@@ -2,7 +2,8 @@
 DcmMeta header extension and NiftiWrapper for working with extended Niftis.
 """
 import sys
-import json, warnings
+import json
+import warnings
 from copy import deepcopy
 import numpy as np
 import nibabel as nb
