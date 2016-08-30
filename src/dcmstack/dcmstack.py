@@ -2,6 +2,9 @@
 Stack DICOM datasets into volumes. The contents of this module are imported
 into the package namespace.
 """
+from __future__ import division, absolute_import, unicode_literals
+
+
 import warnings
 import re
 import dicom
@@ -695,7 +698,7 @@ class DicomStack(object):
         if len(self._files_info) % files_per_vol != 0:
             raise InvalidStackError("Number of files is not an even multiple "
                                     "of the number of unique slice positions.")
-        num_volumes = len(self._files_info) / files_per_vol
+        num_volumes = len(self._files_info) // files_per_vol
 
         # Figure out the number of vector components and time points
         num_vec_comps = len(self._vector_vals)
@@ -704,7 +707,7 @@ class DicomStack(object):
         if num_volumes % num_vec_comps != 0:
             raise InvalidStackError("Number of volumes not an even multiple "
                                     "of the number of vector components.")
-        num_time_points = num_volumes / num_vec_comps
+        num_time_points = num_volumes // num_vec_comps
 
         # If both sort keys are None try to guess
         if (num_volumes > 1 and self._time_order is None and
@@ -798,7 +801,7 @@ class DicomStack(object):
             n_vols *= stack_shape[3]
         if len(stack_shape) > 4:
             n_vols *= stack_shape[4]
-        files_per_vol = len(self._files_info) / n_vols
+        files_per_vol = len(self._files_info) // n_vols
         file_shape = self._files_info[0][0].nii_img.get_shape()
         for vec_idx in range(stack_shape[4]):
             for time_idx in range(stack_shape[3]):
@@ -843,7 +846,7 @@ class DicomStack(object):
             n_vols *= shape[4]
 
         # Figure out the number of files in each volume
-        files_per_vol = len(self._files_info) / n_vols
+        files_per_vol = len(self._files_info) // n_vols
 
         # Pull the DICOM Patient Space affine from the first input
         aff = self._files_info[0][0].nii_img.get_affine()
@@ -886,7 +889,7 @@ class DicomStack(object):
         if len(data.shape) > 4:
             n_vols *= data.shape[4]
 
-        files_per_vol = len(self._files_info) / n_vols
+        files_per_vol = len(self._files_info) // n_vols
 
         # Reorder the voxel data if requested
         permutation = [0, 1, 2]
