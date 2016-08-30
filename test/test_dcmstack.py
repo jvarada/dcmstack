@@ -2,22 +2,23 @@
 Tests for dcmstack.dcmstack
 """
 import sys
+import numpy as np
+import dicom
+import nibabel as nb
+import dcmstack
 from os import path
 from glob import glob
 from hashlib import sha256
 from nose.tools import ok_, eq_, assert_raises
 from copy import deepcopy
-import numpy as np
-import dicom
 from dicom import datadict
-import nibabel as nb
 from nibabel.orientations import aff2axcodes
+
 
 test_dir = path.dirname(__file__)
 src_dir = path.normpath(path.join(test_dir, '../src'))
 sys.path.insert(0, src_dir)
 
-import dcmstack
 
 def test_key_regex_filter():
         filt = dcmstack.make_key_regex_filter(['test', 'another'],
@@ -28,6 +29,7 @@ def test_key_regex_filter():
         ok_(not filt('test2', 1))
         ok_(not filt('2 another', 1))
         ok_(not filt('another test', 1))
+
 
 class TestReorderVoxels(object):
     def setUp(self):
@@ -106,10 +108,10 @@ class TestReorderVoxels(object):
                   )
            )
         ok_(np.allclose(affine,
-                        np.array([[0,1,0,0],
-                                  [-1,0,0,1],
-                                  [0,0,1,0],
-                                  [0,0,0,1]])
+                        np.array([[0, 1, 0, 0],
+                                  [-1, 0, 0, 1],
+                                  [0, 0, 1, 0],
+                                  [0, 0, 0, 1]])
                        )
            )
 
@@ -123,12 +125,13 @@ class TestReorderVoxels(object):
                                                self.affine,
                                                'PLS')
         ok_(np.allclose(affine,
-                        np.array([[0,-1,0,1],
-                                  [-1,0,0,3],
-                                  [0,0,1,0],
-                                  [0,0,0,1]])
+                        np.array([[0, -1, 0, 1],
+                                  [-1, 0, 0, 3],
+                                  [0, 0, 1, 0],
+                                  [0, 0, 0, 1]])
                        )
            )
+
 
 def test_dcm_time_to_sec():
     eq_(dcmstack.dcm_time_to_sec('100235.123456'), 36155.123456)
@@ -136,11 +139,12 @@ def test_dcm_time_to_sec():
     eq_(dcmstack.dcm_time_to_sec('1002'), 36120)
     eq_(dcmstack.dcm_time_to_sec('10'), 36000)
 
-    #Allow older NEMA style values
+    # Allow older NEMA style values
     eq_(dcmstack.dcm_time_to_sec('10:02:35.123456'), 36155.123456)
     eq_(dcmstack.dcm_time_to_sec('10:02:35'), 36155)
     eq_(dcmstack.dcm_time_to_sec('10:02'), 36120)
     eq_(dcmstack.dcm_time_to_sec('10'), 36000)
+
 
 class TestDicomOrdering(object):
     def setUp(self):
@@ -176,6 +180,7 @@ class TestDicomOrdering(object):
                       self.ds
                      )
 
+
 def test_image_collision():
     dcm_path = path.join(test_dir,
                          'data',
@@ -188,6 +193,7 @@ def test_image_collision():
     assert_raises(dcmstack.ImageCollisionError,
                   stack.add_dcm,
                   dcm)
+
 
 class TestIncongruentImage(object):
     def setUp(self):
@@ -301,6 +307,7 @@ class TestInvalidStack(object):
         self.stack.add_dcm(self.inputs[3])
         self._chk()
 
+
 class TestGetShape(object):
     def setUp(self):
         data_dir = path.join(test_dir,
@@ -355,6 +362,7 @@ class TestGetShape(object):
         shape = stack.get_shape()
         eq_(shape, (192, 192, 2))
 
+
 class TestGuessDim(object):
     def setUp(self):
         data_dir = path.join(test_dir,
@@ -382,7 +390,7 @@ class TestGuessDim(object):
             return ordinate
 
     def test_single_guess(self):
-        #Test situations where there is only one possible correct guess
+        # Test situations where there is only one possible correct guess
         for key in dcmstack.DicomStack.sort_guesses:
             stack = dcmstack.DicomStack()
             for idx, in_dcm in enumerate(self.inputs):
@@ -393,7 +401,7 @@ class TestGuessDim(object):
                 delattr(in_dcm, key)
 
     def test_wrong_guess_first(self):
-        #Test situations where the initial guesses are wrong
+        # Test situations where the initial guesses are wrong
         stack = dcmstack.DicomStack()
         for key in dcmstack.DicomStack.sort_guesses[:-1]:
             for in_dcm in self.inputs:
@@ -404,6 +412,7 @@ class TestGuessDim(object):
                     self._get_vr_ord(key, idx) )
             stack.add_dcm(in_dcm)
         eq_(stack.get_shape(), (192, 192, 2, 2))
+
 
 class TestGetData(object):
     def setUp(self):
@@ -470,6 +479,7 @@ class TestGetData(object):
         eq_(sha256(data).hexdigest(),
             '7d85fbcb60a5021a45df3975613dcb7ac731830e0a268590cc798dc39897c04b')
 
+
 class TestGetAffine(object):
     def setUp(self):
         self.data_dir = path.join(test_dir,
@@ -497,46 +507,49 @@ class TestGetAffine(object):
         ref = np.load(path.join(self.data_dir, 'single_vol_aff.npy'))
         ok_(np.allclose(affine, ref))
 
+
 class TestToNifti(object):
 
-    eq_keys = ['sizeof_hdr',
-               'data_type',
-               'extents',
-               'dim_info',
-               'dim',
-               'intent_p1',
-               'intent_p2',
-               'intent_p3',
-               'intent_code',
-               'datatype',
-               'bitpix',
-               'slice_start',
-               'pixdim',
-               'scl_slope',
-               'scl_inter',
-               'slice_end',
-               'slice_code',
-               'xyzt_units',
-              ]
+    eq_keys = [
+        'sizeof_hdr',
+        'data_type',
+        'extents',
+        'dim_info',
+        'dim',
+        'intent_p1',
+        'intent_p2',
+        'intent_p3',
+        'intent_code',
+        'datatype',
+        'bitpix',
+        'slice_start',
+        'pixdim',
+        'scl_slope',
+        'scl_inter',
+        'slice_end',
+        'slice_code',
+        'xyzt_units',
+    ]
 
-    close_keys = ['cal_max',
-                  'cal_min',
-                  'slice_duration',
-                  'toffset',
-                  'glmax',
-                  'glmin',
-                  'qform_code',
-                  'sform_code',
-                  'quatern_b',
-                  'quatern_c',
-                  'quatern_d',
-                  'qoffset_x',
-                  'qoffset_y',
-                  'qoffset_z',
-                  'srow_x',
-                  'srow_y',
-                  'srow_z',
-                 ]
+    close_keys = [
+        'cal_max',
+        'cal_min',
+        'slice_duration',
+        'toffset',
+        'glmax',
+        'glmin',
+        'qform_code',
+        'sform_code',
+        'quatern_b',
+        'quatern_c',
+        'quatern_d',
+        'qoffset_x',
+        'qoffset_y',
+        'qoffset_z',
+        'srow_x',
+        'srow_y',
+        'srow_z',
+    ]
 
     def setUp(self):
         self.data_dir = path.join(test_dir,
@@ -609,4 +622,3 @@ class TestToNifti(object):
         nii = stack.to_nifti()
         data = nii.get_data()
         ok_(np.all(data[:, :, 0] == np.iinfo(np.int16).max))
-
