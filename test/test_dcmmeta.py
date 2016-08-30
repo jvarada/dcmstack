@@ -1,6 +1,8 @@
 """
 Tests for dcmstack.dcmmeta
 """
+from __future__ import division, absolute_import, unicode_literals
+
 
 import sys
 import numpy as np

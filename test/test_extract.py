@@ -1,6 +1,9 @@
 """
 Tests for dcmstack.extract
 """
+from __future__ import division, absolute_import, unicode_literals
+
+
 import sys, warnings
 from os import path
 from nose.tools import ok_, eq_, assert_raises
@@ -100,9 +103,9 @@ class TestMetaExtractor(object):
                 ok_(isinstance(value, list))
             if elem.VR in list(extract.unpack_vr_map.keys()) + ['DS', 'IS']:
                 if elem.VM == 1:
-                    ok_(not isinstance(value, str))
+                    ok_(not isinstance(value, bytes))
                 else:
-                    ok_(not any(isinstance(val, str) for val in value))
+                    ok_(not any(isinstance(val, bytes) for val in value))
 
     def test_dup_trans(self):
         translators = [extract.csa_image_trans, extract.csa_image_trans]

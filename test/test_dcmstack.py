@@ -1,6 +1,9 @@
 """
 Tests for dcmstack.dcmstack
 """
+from __future__ import division, absolute_import, unicode_literals
+
+
 import sys
 import numpy as np
 import dicom
@@ -173,7 +176,7 @@ class TestDicomOrdering(object):
             abs_order.index(str(self.ds['EchoTime'])))
 
     def test_abs_missing(self):
-        abs_order = [1,3]
+        abs_order = [1, 3]
         ordering = dcmstack.DicomOrdering('EchoTime', abs_ordering=abs_order)
         assert_raises(ValueError,
                       ordering.get_ordinate,
