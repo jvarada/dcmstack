@@ -3,18 +3,21 @@ Command line interface for nitool.
 
 @author: moloney
 """
-import os, sys, argparse
+import os
+import sys
+import argparse
 import nibabel as nb
 from .dcmmeta import NiftiWrapper, DcmMetaExtension, MissingExtensionError
 
-prog_descrip = """Work with extended Nifti files created by dcmstack"""
+prog_descrip = "Work with extended Nifti files created by dcmstack"
+
 
 def main(argv=sys.argv):
-    #Setup the top level parser
+    # Setup the top level parser
     arg_parser = argparse.ArgumentParser(description=prog_descrip)
     sub_parsers = arg_parser.add_subparsers(title="Subcommands")
 
-    #Split command
+    # Split command
     split_help = ("Split src_nii file along a dimension. Defaults to the slice "
                   "dimension if 3D, otherwise the last dimension.")
     split_parser = sub_parsers.add_parser('split', help=split_help)
@@ -28,7 +31,7 @@ def main(argv=sys.argv):
                               "number to the src_nii filename."))
     split_parser.set_defaults(func=split)
 
-    #Merge Command
+    # Merge Command
     merge_help = ("Merge the provided Nifti files along a dimension. Defaults "
                   "to slice, then time, and then vector.")
     merge_parser = sub_parsers.add_parser('merge', help=merge_help)
@@ -44,7 +47,7 @@ def main(argv=sys.argv):
                               help="Clear all per slice meta data")
     merge_parser.set_defaults(func=merge)
 
-    #Dump Command
+    # Dump Command
     dump_help = "Dump the JSON meta data extension from the provided Nifti."
     dump_parser = sub_parsers.add_parser('dump', help=dump_help)
     dump_parser.add_argument('src_nii', nargs=1)
@@ -59,7 +62,7 @@ def main(argv=sys.argv):
                              help="Remove the extension from the Nifti file")
     dump_parser.set_defaults(func=dump)
 
-    #Embed Command
+    # Embed Command
     embed_help = "Embed a JSON extension into the Nifti file."
     embed_parser = sub_parsers.add_parser('embed', help=embed_help)
     embed_parser.add_argument('src_json', nargs='?', type=argparse.FileType('r'),
@@ -69,7 +72,7 @@ def main(argv=sys.argv):
                               help="Overwrite any existing dcmmeta extension")
     embed_parser.set_defaults(func=embed)
 
-    #Lookup command
+    # Lookup command
     lookup_help = "Lookup the value for the given meta data key."
     lookup_parser = sub_parsers.add_parser('lookup', help=lookup_help)
     lookup_parser.add_argument('key', nargs=1)
@@ -80,7 +83,7 @@ def main(argv=sys.argv):
                                "integers (one for each dimension)."))
     lookup_parser.set_defaults(func=lookup)
 
-    #Inject command
+    # Inject command
     inject_help = "Inject meta data into the JSON extension."
     inject_parser = sub_parsers.add_parser('inject', help=inject_help)
     inject_parser.add_argument('dest_nii', nargs=1)
@@ -96,9 +99,10 @@ def main(argv=sys.argv):
                                "of trying to determine the type automatically")
     inject_parser.set_defaults(func=inject)
 
-    #Parse the arguments and call the appropriate function
+    # Parse the arguments and call the appropriate function
     args = arg_parser.parse_args(argv[1:])
     return args.func(args)
+
 
 def split(args):
     src_path = args.src_nii[0]
@@ -121,6 +125,7 @@ def split(args):
         nb.save(split, out_name)
     return 0
 
+
 def make_key_func(meta_key, index=None):
     def key_func(src_nii):
         result = src_nii.get_meta(meta_key, index)
@@ -129,6 +134,7 @@ def make_key_func(meta_key, index=None):
         return result
 
     return key_func
+
 
 def merge(args):
     src_wrps = []
@@ -154,6 +160,7 @@ def merge(args):
     result_wrp.to_filename(out_name)
     return 0
 
+
 def dump(args):
     src_nii = nb.load(args.src_nii[0])
     src_wrp = NiftiWrapper(src_nii, args.make_empty)
@@ -166,12 +173,14 @@ def dump(args):
         src_wrp.to_filename(args.src_nii[0])
     return 0
 
+
 def check_overwrite():
     usr_input = ''
     while not usr_input in ('y', 'n'):
         usr_input = input('Existing DcmMeta extension found, overwrite? '
                               '[y/n]').lower()
     return usr_input == 'y'
+
 
 def embed(args):
     dest_nii = nb.load(args.dest_nii[0])
@@ -190,6 +199,7 @@ def embed(args):
     nb.save(dest_nii, args.dest_nii[0])
     return 0
 
+
 def lookup(args):
     src_wrp = NiftiWrapper.from_filename(args.src_nii[0])
     index = None
@@ -199,6 +209,7 @@ def lookup(args):
     if not meta is None:
         print(meta)
     return 0
+
 
 def convert_values(values, type_str=None):
     if type_str is None:
@@ -217,6 +228,7 @@ def convert_values(values, type_str=None):
     if len(values) == 1:
         return values[0]
     return values
+
 
 def inject(args):
     dest_nii = nb.load(args.dest_nii[0])
@@ -244,6 +256,7 @@ def inject(args):
     class_dict[key] = convert_values(args.values, args.type)
     nb.save(dest_nii, args.dest_nii[0])
     return 0
+
 
 if __name__ == '__main__':
     sys.exit(main())
