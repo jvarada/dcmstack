@@ -1,19 +1,21 @@
 """
 Tests for dcmstack.dcmmeta
 """
+
 import sys
-from os import path
-from glob import glob
-from nose.tools import ok_, eq_, assert_raises
 import numpy as np
 import dicom
 import nibabel as nb
+from os import path
+from glob import glob
+from nose.tools import ok_, eq_, assert_raises
+from dcmstack import dcmmeta
+
 
 test_dir = path.dirname(__file__)
 src_dir = path.normpath(path.join(test_dir, '../src'))
 sys.path.insert(0, src_dir)
 
-from dcmstack import dcmmeta
 
 def test_is_constant():
     ok_(dcmmeta.is_constant([0]))
@@ -27,6 +29,7 @@ def test_is_constant():
     assert_raises(ValueError, dcmmeta.is_constant, [0, 0, 0], 2)
     assert_raises(ValueError, dcmmeta.is_constant, [0, 0, 0], 4)
 
+
 def test_is_repeating():
     ok_(dcmmeta.is_repeating([0, 1, 0, 1], 2))
     ok_(dcmmeta.is_repeating([0, 1, 0, 1, 0, 1], 2))
@@ -36,6 +39,7 @@ def test_is_repeating():
     assert_raises(ValueError, dcmmeta.is_repeating, [0, 1, 0, 1], 3)
     assert_raises(ValueError, dcmmeta.is_repeating, [0, 1, 0, 1], 4)
     assert_raises(ValueError, dcmmeta.is_repeating, [0, 1, 0, 1], 5)
+
 
 def test_get_valid_classes():
     ext = dcmmeta.DcmMetaExtension.make_empty((2, 2, 2), np.eye(4))
@@ -70,6 +74,7 @@ def test_get_valid_classes():
         )
        )
 
+
 def test_get_mulitplicity_4d():
     ext = dcmmeta.DcmMetaExtension.make_empty((64, 64, 7, 11),
                                               np.eye(4),
@@ -80,6 +85,7 @@ def test_get_mulitplicity_4d():
     eq_(ext.get_multiplicity(('time', 'samples')), 11)
     eq_(ext.get_multiplicity(('time', 'slices')), 7)
 
+
 def test_get_mulitplicity_4d_vec():
     ext = dcmmeta.DcmMetaExtension.make_empty((64, 64, 7, 1, 11),
                                               np.eye(4),
@@ -89,6 +95,7 @@ def test_get_mulitplicity_4d_vec():
     eq_(ext.get_multiplicity(('global', 'slices')), 7 * 11)
     eq_(ext.get_multiplicity(('vector', 'samples')), 11)
     eq_(ext.get_multiplicity(('vector', 'slices')), 7)
+
 
 def test_get_mulitplicity_5d():
     ext = dcmmeta.DcmMetaExtension.make_empty((64, 64, 7, 11, 13),
@@ -102,6 +109,7 @@ def test_get_mulitplicity_5d():
     eq_(ext.get_multiplicity(('time', 'slices')), 7)
     eq_(ext.get_multiplicity(('vector', 'samples')), 13)
     eq_(ext.get_multiplicity(('vector', 'slices')), 7 * 11)
+
 
 class TestCheckValid(object):
     def setUp(self):
@@ -187,6 +195,7 @@ class TestCheckValid(object):
         self.ext.get_class_dict(('time', 'samples'))['Test'] = [0] * 3
         assert_raises(dcmmeta.InvalidExtensionError, self.ext.check_valid)
 
+
 def test_dcmmeta_affine():
     ext = dcmmeta.DcmMetaExtension.make_empty((64, 64, 2),
                                               np.diag([1, 2, 3, 4]),
@@ -203,6 +212,7 @@ def test_dcmmeta_affine():
     ext.affine = np.eye(4)
     ok_(np.allclose(ext.affine, np.eye(4)))
 
+
 def test_dcmmeta_slice_dim():
     ext = dcmmeta.DcmMetaExtension.make_empty((64, 64, 2), np.eye(4))
     eq_(ext.slice_dim, None)
@@ -214,6 +224,7 @@ def test_dcmmeta_slice_dim():
                  )
     ext.slice_dim = 2
     eq_(ext.slice_dim, 2)
+
 
 def test_dcmmeta_shape():
     ext = dcmmeta.DcmMetaExtension.make_empty((64, 64, 2), np.eye(4))
@@ -227,11 +238,13 @@ def test_dcmmeta_shape():
     ext.shape = (128, 128, 64)
     eq_(ext.shape, (128, 128, 64))
 
+
 def test_dcmmeta_version():
     ext = dcmmeta.DcmMetaExtension.make_empty((64, 64, 2), np.eye(4))
     eq_(ext.version, dcmmeta._meta_version)
     ext.version = 1.0
     eq_(ext.version, 1.0)
+
 
 def test_dcmmeta_slice_norm():
     ext = dcmmeta.DcmMetaExtension.make_empty((64, 64, 2),
@@ -242,6 +255,7 @@ def test_dcmmeta_slice_norm():
     ext.slice_dim = 1
     ok_(np.allclose(ext.slice_normal, [0, 1, 0]))
 
+
 def test_dcmmeta_n_slices():
     ext = dcmmeta.DcmMetaExtension.make_empty((64, 64, 2),
                                               np.eye(4),
@@ -250,6 +264,7 @@ def test_dcmmeta_n_slices():
     eq_(ext.n_slices, 2)
     ext.slice_dim = 1
     eq_(ext.n_slices, 64)
+
 
 class TestGetKeysClassesValues(object):
     def setUp(self):
@@ -296,6 +311,7 @@ class TestGetKeysClassesValues(object):
                 ([0] * self.ext.get_multiplicity(classes), classes)
                )
 
+
 class TestFiltering(object):
     def setUp(self):
         self.ext = dcmmeta.DcmMetaExtension.make_empty((64, 64, 2, 3, 4),
@@ -328,6 +344,7 @@ class TestFiltering(object):
         for base_cls, sub_cls in self.ext.get_valid_classes():
             if sub_cls == 'slices':
                 eq_(len(self.ext.get_class_dict((base_cls, sub_cls))), 0)
+
 
 class TestSimplify(object):
     def setUp(self):
@@ -421,6 +438,7 @@ class TestSimplify(object):
         eq_(self.ext._simplify('Test1'), True)
         eq_(self.ext.get_classification('Test1'), ('global', 'const'))
 
+
 def test_simp_sngl_slc_5d():
     ext = dcmmeta.DcmMetaExtension.make_empty((64, 64, 1, 3, 5),
                                               np.eye(4),
@@ -434,6 +452,7 @@ def test_simp_sngl_slc_5d():
         (list(range(15)), ('time','samples'))
        )
 
+
 class TestGetSubset(object):
     def setUp(self):
         self.ext = dcmmeta.DcmMetaExtension.make_empty((64, 64, 3, 5, 7),
@@ -442,7 +461,7 @@ class TestGetSubset(object):
                                                        2
                                                       )
 
-        #Add an element to every classification
+        # Add an element to every classification
         for classes in self.ext.get_valid_classes():
             key = '%s_%s_test' % classes
             mult = self.ext.get_multiplicity(classes)
@@ -540,7 +559,7 @@ class TestGetSubset(object):
                             (vals, ('global', 'slices')))
 
     def test_time_sample_subset_simplify(self):
-        #Test for simplification of time samples that become constant
+        # Test for simplification of time samples that become constant
         vals = []
         for vector_idx in range(7):
             for time_idx in range(5):
@@ -554,7 +573,7 @@ class TestGetSubset(object):
             eq_(sub.get_values_and_class('time_smp_to_const'),
                 (time_idx, ('global', 'const')))
 
-        #Test for simplification of vector slices that become constant
+        # Test for simplification of vector slices that become constant
         vals = []
         for time_idx in range(5):
             for slice_idx in range(3):
@@ -565,7 +584,7 @@ class TestGetSubset(object):
         self.ext.get_class_dict(('vector', 'slices'))['vec_slc_to_const'] = \
             vals
 
-        #Test simplification of global slices that become constant
+        # Test simplification of global slices that become constant
         vals = []
         for vector_idx in range(7):
             for time_idx in range(5):
@@ -584,8 +603,8 @@ class TestGetSubset(object):
         eq_(sub.get_values_and_class('glb_slc_to_const'),
             (1, ('global', 'const')))
 
-        #Test simplification of global slices that become vector slices or
-        #samples
+        # Test simplification of global slices that become vector slices or
+        # samples
         vals = []
         for vector_idx in range(7):
             for time_idx in range(5):
@@ -624,7 +643,7 @@ class TestGetSubset(object):
                             (list(range(3 * 5)), ('global', 'slices'))
                            )
                 elif classes[0] == 'time':
-                    if classes[1] == 'samples': #Could be const
+                    if classes[1] == 'samples':  # Could be const
                         start = vector_idx * 5
                         end = start + 5
                         eq_(sub.get_values_and_class(key),
@@ -638,7 +657,7 @@ class TestGetSubset(object):
                         eq_(sub.get_values_and_class(key),
                             self.ext.get_values_and_class(key)
                            )
-                    elif classes[1] == 'slices': #Could be const or time samples or time slices
+                    elif classes[1] == 'slices':  # Could be const or time samples or time slices
                         start = vector_idx * (3 * 5)
                         end = start + (3 * 5)
                         eq_(sub.get_values_and_class(key),
@@ -646,7 +665,7 @@ class TestGetSubset(object):
 
     def test_vector_sample_subset_simplify(self):
 
-        #Test for simplification of time samples that become constant
+        # Test for simplification of time samples that become constant
         vals = []
         for vector_idx in range(7):
             for time_idx in range(5):
@@ -660,8 +679,8 @@ class TestGetSubset(object):
         eq_(sub.get_values_and_class('time_smp_to_const'),
             (1, ('global', 'const')))
 
-        #Test for simplification of global slices that become constant, time
-        #samples, or time slices
+        # Test for simplification of global slices that become constant, time
+        # samples, or time slices
         vals = []
         for vector_idx in range(7):
             for time_idx in range(5):
@@ -688,6 +707,7 @@ class TestGetSubset(object):
                 eq_(sub.get_values_and_class('glb_slc'),
                     (list(range(5)), ('time', 'samples')))
 
+
 class TestChangeClass(object):
     def setUp(self):
         self.ext = dcmmeta.DcmMetaExtension.make_empty((2, 2, 3, 5, 7),
@@ -695,7 +715,7 @@ class TestChangeClass(object):
                                                        np.eye(4),
                                                        2
                                                       )
-        #Add an element to every classification
+        # Add an element to every classification
         for classes in self.ext.get_valid_classes():
             key = '%s_%s_test' % classes
             mult = self.ext.get_multiplicity(classes)
@@ -804,6 +824,7 @@ def test_from_sequence_2d_to_3d():
     eq_(merged.get_values_and_class('missing'),
         ([1, None], ('global', 'slices')))
 
+
 def test_from_sequence_3d_to_4d():
     for dim_name, dim in (('time', 3), ('vector', 4)):
         ext1 = dcmmeta.DcmMetaExtension.make_empty((2, 2, 2),
@@ -838,6 +859,7 @@ def test_from_sequence_3d_to_4d():
             ([0, 1, 1, 2], ('global', 'slices')))
         eq_(merged.get_values_and_class('global_slices_missing'),
             ([0, 1, None, None], ('global', 'slices')))
+
 
 def test_from_sequence_4d_time_to_5d():
     ext1 = dcmmeta.DcmMetaExtension.make_empty((2, 2, 2, 2),
@@ -896,10 +918,12 @@ def test_from_sequence_4d_time_to_5d():
     eq_(merged.get_values_and_class('time_slices_missing'),
         ([0, 1, 0, 1, None, None, None, None], ('global', 'slices')))
 
+
 def test_from_sequence_no_slc():
     ext1 = dcmmeta.DcmMetaExtension.make_empty((2, 2, 2), np.eye(4))
     ext2 = dcmmeta.DcmMetaExtension.make_empty((2, 2, 2), np.eye(4))
     merged = dcmmeta.DcmMetaExtension.from_sequence([ext1, ext2], 4)
+
 
 def test_nifti_wrapper_init():
     nii = nb.Nifti1Image(np.zeros((5, 5, 5)), np.eye(4))
@@ -916,6 +940,7 @@ def test_nifti_wrapper_init():
     nw2 = dcmmeta.NiftiWrapper(nii, True)
     ext2 = nw2.meta_ext
     eq_(ext, ext2)
+
 
 class TestMetaValid(object):
     def setUp(self):
@@ -968,6 +993,7 @@ class TestMetaValid(object):
             else:
                 ok_(self.nw.meta_valid(classes))
 
+
 class TestGetMeta(object):
     def setUp(self):
         nii = nb.Nifti1Image(np.zeros((5, 5, 5, 7, 9)), np.eye(4))
@@ -975,7 +1001,7 @@ class TestGetMeta(object):
         hdr.set_dim_info(None, None, 2)
         self.nw = dcmmeta.NiftiWrapper(nii, True)
 
-        #Add an element to every classification
+        # Add an element to every classification
         for classes in self.nw.meta_ext.get_valid_classes():
             key = '%s_%s_test' % classes
             mult = self.nw.meta_ext.get_multiplicity(classes)
@@ -1069,6 +1095,7 @@ class TestGetMeta(object):
                         time_idx + (vector_idx * 7)
                        )
 
+
 class TestSplit(object):
     def setUp(self):
         self.arr = np.arange(3 * 3 * 3 * 5 * 7).reshape(3, 3, 3, 5, 7)
@@ -1077,7 +1104,7 @@ class TestSplit(object):
         hdr.set_dim_info(None, None, 2)
         self.nw = dcmmeta.NiftiWrapper(nii, True)
 
-        #Add an element to every classification
+        # Add an element to every classification
         for classes in self.nw.meta_ext.get_valid_classes():
             key = '%s_%s_test' % classes
             mult = self.nw.meta_ext.get_multiplicity(classes)
@@ -1120,6 +1147,7 @@ class TestSplit(object):
                        self.arr[:, :, :, :, split_idx])
                )
 
+
 def test_split_keep_spatial():
     arr = np.arange(3 * 3 * 3).reshape(3, 3, 3)
     nii = nb.Nifti1Image(arr, np.eye(4))
@@ -1149,6 +1177,7 @@ def test_from_dicom():
     eq_(nw.meta_ext.get_values_and_class('EchoTime'),
         (40, ('global', 'const'))
        )
+
 
 def test_from_2d_slice_to_3d():
     slice_nws = []
@@ -1184,6 +1213,7 @@ def test_from_2d_slice_to_3d():
         ok_(np.all(merged_data[:, :, idx] ==
                    np.arange(idx * (4 * 4), (idx + 1) * (4 * 4)).reshape(4, 4))
            )
+
 
 def test_from_3d_time_to_4d():
     time_nws = []
@@ -1231,6 +1261,7 @@ def test_from_3d_time_to_4d():
                              (idx + 1) * (4 * 4 * 4)).reshape(4, 4, 4))
            )
 
+
 def test_from_3d_vector_to_4d():
     vector_nws = []
     for idx in range(3):
@@ -1277,9 +1308,10 @@ def test_from_3d_vector_to_4d():
                              (idx + 1) * (4 * 4 * 4)).reshape(4, 4, 4))
            )
 
+
 def test_merge_inconsistent_hdr():
-    #Test that inconsistent header data does not make it into the merged
-    #result
+    # Test that inconsistent header data does not make it into the merged
+    # result
     time_nws = []
     for idx in range(3):
         arr = np.arange(idx * (4 * 4 * 4),
@@ -1301,8 +1333,9 @@ def test_merge_inconsistent_hdr():
     eq_(merged_hdr.get_dim_info(), (None, None, 2))
     eq_(merged_hdr.get_xyzt_units(), ('mm', 'unknown'))
 
+
 def test_merge_with_slc_and_without():
-    #Test merging two data sets where one has per slice meta and other does not
+    # Test merging two data sets where one has per slice meta and other does not
     input_nws = []
     for idx in range(3):
         arr = np.arange(idx * (4 * 4 * 4),
