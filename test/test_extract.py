@@ -5,13 +5,19 @@ import sys, warnings
 from os import path
 from nose.tools import ok_, eq_, assert_raises
 
+
 test_dir = path.dirname(__file__)
 src_dir = path.normpath(path.join(test_dir, '../src'))
 sys.path.insert(0, src_dir)
+
+
 with warnings.catch_warnings():
     warnings.simplefilter('ignore')
     from dcmstack import extract
+
+
 dicom, csareader = extract.dicom, extract.csareader
+
 
 class TestCsa(object):
     def setUp(self):
@@ -66,6 +72,7 @@ class TestCsa(object):
     def test_csa_series_trans(self):
         csa_dict = extract.csa_series_trans_func(self.data[(0x29, 0x1020)])
         eq_(csa_dict['MrPhoenixProtocol.sEFISPEC.bEFIDataValid'], 1)
+
 
 class TestMetaExtractor(object):
     def setUp(self):
