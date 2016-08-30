@@ -29,7 +29,7 @@ dicom.config.enforce_valid_values = False
 
 def is_ascii(in_str):
     """Return true if the given string is valid ASCII."""
-    if all(' ' <= c <= '~' for c in in_str):
+    if all(ord(' ') <= c <= ord('~') for c in in_str):
         return True
     return False
 
@@ -389,7 +389,7 @@ class MetaExtractor(object):
         # If the VR is implicit, we may need to unpack the values from a byte
         # string. This may require us to make an assumption about whether the
         # value is signed or not, but this is unavoidable.
-        if elem.VR in unpack_vr_map and isinstance(elem.value, str):
+        if elem.VR in unpack_vr_map and isinstance(elem.value, bytes):
             n_vals = len(elem.value) // struct.calcsize(unpack_vr_map[elem.VR])
             if n_vals != elem.VM:
                 warnings.warn("The element's VM and the number of values do "

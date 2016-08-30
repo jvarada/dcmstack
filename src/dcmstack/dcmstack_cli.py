@@ -41,7 +41,7 @@ def parse_tags(opt_str):
 def sanitize_path_comp(path_comp):
     result = []
     for char in path_comp:
-        if not char in string.letters + string.digits + '-_.':
+        if not char in string.ascii_letters + string.digits + '-_.':
             result.append('_')
         else:
             result.append(char)

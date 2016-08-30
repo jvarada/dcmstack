@@ -103,9 +103,9 @@ class TestMetaExtractor(object):
                 ok_(isinstance(value, list))
             if elem.VR in list(extract.unpack_vr_map.keys()) + ['DS', 'IS']:
                 if elem.VM == 1:
-                    ok_(not isinstance(value, bytes))
+                    ok_(not isinstance(value, str))
                 else:
-                    ok_(not any(isinstance(val, bytes) for val in value))
+                    ok_(not any(isinstance(val, str) for val in value))
 
     def test_dup_trans(self):
         translators = [extract.csa_image_trans, extract.csa_image_trans]
