@@ -1,6 +1,8 @@
 """
 DcmMeta header extension and NiftiWrapper for working with extended Niftis.
 """
+from __future__ import division, absolute_import, unicode_literals
+
 import sys
 import json
 import warnings
@@ -60,7 +62,7 @@ def is_constant(sequence, period=None):
             raise ValueError('The sequence length is not evenly divisible by '
                              'the period length.')
 
-        for period_idx in range(seq_len / period):
+        for period_idx in range(seq_len // period):
             start_idx = period_idx * period
             end_idx = start_idx + period
             if not all(val == sequence[start_idx]
@@ -90,7 +92,7 @@ def is_repeating(sequence, period):
         raise ValueError('The sequence length is not evenly divisible by the '
                          'period length.')
 
-    for period_idx in range(1, seq_len / period):
+    for period_idx in range(1, seq_len // period):
         start_idx = period_idx * period
         end_idx = start_idx + period
         if sequence[start_idx:end_idx] != sequence[:period]:
@@ -732,7 +734,7 @@ class DcmMetaExtension(Nifti1Extension):
         if dest_cls == ('global', 'const'):
             return None
         elif src_cls == ('global', 'slices'):
-            return self.get_multiplicity(src_cls) / self.get_multiplicity(dest_cls)
+            return self.get_multiplicity(src_cls) // self.get_multiplicity(dest_cls)
         elif src_cls == ('vector', 'slices'):  # implies dest_cls == ('time', 'samples'):
             return  self.n_slices
         elif src_cls == ('time', 'samples'):  # implies dest_cls == ('vector', 'samples')
@@ -862,7 +864,7 @@ class DcmMetaExtension(Nifti1Extension):
                 new_mult = self.shape[slice_dim]
         else:
             new_mult = 1
-        mult_fact = new_mult / curr_mult
+        mult_fact = new_mult // curr_mult
         if curr_mult == 1:
             values = [values]
 
@@ -920,7 +922,7 @@ class DcmMetaExtension(Nifti1Extension):
 
             if len(subset_vals) < dest_mult:
                 full_vals = []
-                for val_idx in range(dest_mult / len(subset_vals)):
+                for val_idx in range(dest_mult // len(subset_vals)):
                     full_vals += deepcopy(subset_vals)
                 subset_vals = full_vals
             if len(subset_vals) == 1:
