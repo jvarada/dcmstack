@@ -3,23 +3,25 @@ Command line interface to dcmstack.
 
 @author: moloney
 """
-import os, sys, argparse, string
-from glob import glob
+
+import os
+import sys
+import argparse
+import string
 import dicom
+from glob import glob
 from . import dcmstack
-from .dcmstack import (parse_and_group, stack_group, DicomOrdering,
-                       default_group_keys)
+from .dcmstack import parse_and_group, stack_group, DicomOrdering, default_group_keys
 from .dcmmeta import NiftiWrapper
 from . import extract
 from .info import __version__
 
 
-prog_descrip = """Stack DICOM files from each source directory into 2D to 5D
-volumes, optionally extracting meta data.
-"""
+prog_descrip = "Stack DICOM files from each source directory into 2D to 5D volumes, optionally extracting meta data."
 
-prog_epilog = """IT IS YOUR RESPONSIBILITY TO KNOW IF THERE IS PRIVATE HEALTH
-INFORMATION IN THE METADATA EXTRACTED BY THIS PROGRAM."""
+prog_epilog = """IT IS YOUR RESPONSIBILITY TO KNOW IF THERE IS PRIVATE HEALTH INFORMATION IN THE METADATA
+EXTRACTED BY THIS PROGRAM."""
+
 
 def parse_tags(opt_str):
     tag_strs = opt_str.split(',')
@@ -33,6 +35,7 @@ def parse_tags(opt_str):
                    )
     return tags
 
+
 def sanitize_path_comp(path_comp):
     result = []
     for char in path_comp:
@@ -42,8 +45,9 @@ def sanitize_path_comp(path_comp):
             result.append(char)
     return ''.join(result)
 
+
 def main(argv=sys.argv):
-    #Handle command line options
+    # Handle command line options
     arg_parser = argparse.ArgumentParser(description=prog_descrip,
                                          epilog=prog_epilog)
     arg_parser.add_argument('src_dirs', nargs='*', help=('The source '
@@ -156,13 +160,13 @@ def main(argv=sys.argv):
         print(__version__)
         return 0
 
-    #Check if we are just listing the translators
+    # Check if we are just listing the translators
     if args.list_translators:
         for translator in extract.default_translators:
             print('%s -> %s' % (translator.tag, translator.name))
         return 0
 
-    #Check if we are just listing the default exclude regular expressions
+    # Check if we are just listing the default exclude regular expressions
     if args.default_regexes:
         print('Default exclude regular expressions:')
         for regex in dcmstack.default_key_excl_res:
@@ -172,15 +176,15 @@ def main(argv=sys.argv):
             print('\t' + regex)
         return 0
 
-    #Check if we are generating meta data
+    # Check if we are generating meta data
     gen_meta = args.embed_meta or args.dump_meta
 
     if gen_meta:
-        #Start with the module defaults
+        # Start with the module defaults
         ignore_rules = extract.default_ignore_rules
         translators = extract.default_translators
 
-        #Disable translators if requested
+        # Disable translators if requested
         if args.disable_translator:
             if args.disable_translator.lower() == 'all':
                 translators = tuple()
@@ -195,7 +199,7 @@ def main(argv=sys.argv):
                         new_translators.append(translator)
                 translators = new_translators
 
-        #Include non-translated private elements if requested
+        # Include non-translated private elements if requested
         if args.extract_private:
             ignore_rules = (extract.ignore_pixel_data,
                             extract.ignore_overlay_data,
@@ -206,7 +210,7 @@ def main(argv=sys.argv):
     else:
         extractor = extract.minimal_extractor
 
-    #Add include/exclude regexes to meta filter
+    # Add include/exclude regexes to meta filter
     include_regexes = dcmstack.default_key_incl_res
     if args.include_regex:
         include_regexes += args.include_regex
@@ -216,7 +220,7 @@ def main(argv=sys.argv):
     meta_filter = dcmstack.make_key_regex_filter(exclude_regexes,
                                                  include_regexes)
 
-    #Figure out time and vector ordering
+    # Figure out time and vector ordering
     if args.time_var:
         if args.time_order:
             order_file = open(args.time_order)
@@ -241,13 +245,13 @@ def main(argv=sys.argv):
     if len(args.src_dirs) == 0:
         arg_parser.error('No source directories were provided.')
 
-    #Handle group-by option
+    # Handle group-by option
     if not args.group_by is None:
         group_by = args.group_by.split(',')
     else:
         group_by = default_group_keys
 
-    #Handle each source directory individually
+    # Handle each source directory individually
     for src_dir in args.src_dirs:
         if not os.path.isdir(src_dir):
             print('%s is not a directory, skipping' % src_dir, file=sys.stderr)
@@ -255,7 +259,7 @@ def main(argv=sys.argv):
         if args.verbose:
             print("Processing source directory %s" % src_dir)
 
-        #Build a list of paths to source files
+        # Build a list of paths to source files
         glob_str = os.path.join(src_dir, '*')
         if args.file_ext:
             glob_str += args.file_ext
@@ -264,7 +268,7 @@ def main(argv=sys.argv):
         if args.verbose:
             print("Found %d source files in the directory" % len(src_paths))
 
-        #Group the files in this directory
+        # Group the files in this directory
         groups = parse_and_group(src_paths,
                                  group_by,
                                  extractor,
@@ -289,7 +293,7 @@ def main(argv=sys.argv):
                                 meta_filter=meta_filter)
             meta = group[0][1]
 
-            #Build an appropriate output format string if none was specified
+            # Build an appropriate output format string if none was specified
             if args.output_name is None:
                 out_fmt = []
                 if 'SeriesNumber' in meta:
@@ -304,8 +308,8 @@ def main(argv=sys.argv):
             else:
                 out_fmt = args.output_name
 
-            #Get the output filename from the format string, make sure the
-            #result is unique for this source directory
+            # Get the output filename from the format string, make sure the
+            # result is unique for this source directory
             out_fn = sanitize_path_comp(out_fmt % meta)
             if out_fn in generated_outs:
                 out_fn += '-%03d' % out_idx
