@@ -272,7 +272,7 @@ class DcmMetaExtension(Nifti1Extension):
             elif base == 'vector':
                 n_vals = shape[4]
 
-        return n_vals
+        return int(n_vals)
 
     def check_valid(self):
         """Check if the extension is valid.
