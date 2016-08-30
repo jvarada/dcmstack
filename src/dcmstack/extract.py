@@ -1,16 +1,17 @@
 """
 Extract meta data from a DICOM data set.
 """
-import struct, warnings
-from collections import namedtuple, defaultdict
+
+import struct
+import warnings
 import dicom
+from collections import namedtuple, defaultdict
 from dicom.datadict import keyword_for_tag
 from nibabel.nicom import csareader
 from .dcmstack import DicomStack
-try:
-    from collections import OrderedDict
-except ImportError:
-    from ordereddict import OrderedDict
+from collections import OrderedDict
+
+
 try:
     import chardet
     have_chardet = True
@@ -18,51 +19,57 @@ except ImportError:
     have_chardet = False
     pass
 
-#This is needed to allow extraction on files with invalid values (e.g. too
-#long of a decimal string)
+
+# This is needed to allow extraction on files with invalid values (e.g. too
+# long of a decimal string)
 dicom.config.enforce_valid_values = False
 
+
 def is_ascii(in_str):
-    '''Return true if the given string is valid ASCII.'''
+    """Return true if the given string is valid ASCII."""
     if all(' ' <= c <= '~' for c in in_str):
         return True
     return False
 
+
 def ignore_private(elem):
-    '''Ignore rule for `MetaExtractor` to skip private DICOM elements (odd
-    group number).'''
+    """Ignore rule for `MetaExtractor` to skip private DICOM elements (odd
+    group number)."""
     if elem.tag.group % 2 == 1:
         return True
     return False
 
+
 def ignore_pixel_data(elem):
     return elem.tag == dicom.tag.Tag(0x7fe0, 0x10)
 
+
 def ignore_overlay_data(elem):
     return elem.tag.group & 0xff00 == 0x6000 and elem.tag.elem == 0x3000
+
 
 def ignore_color_lut_data(elem):
     return (elem.tag.group == 0x28 and
             elem.tag.elem in (0x1201, 0x1202, 0x1203, 0x1221, 0x1222, 0x1223))
 
-default_ignore_rules = (ignore_private,
-                        ignore_pixel_data,
-                        ignore_overlay_data,
-                        ignore_color_lut_data)
-'''The default tuple of ignore rules for `MetaExtractor`.'''
+
+# The default tuple of ignore rules for `MetaExtractor`.
+default_ignore_rules = (
+    ignore_private,
+    ignore_pixel_data,
+    ignore_overlay_data,
+    ignore_color_lut_data
+)
 
 
-Translator = namedtuple('Translator', ['name',
-                                       'tag',
-                                       'priv_creator',
-                                       'trans_func']
-                       )
-'''A namedtuple for storing the four elements of a translator: a name, the
-dicom.tag.Tag that can be translated, the private creator string (optional), and
-the function which takes the DICOM element and returns a dictionary.'''
+# A namedtuple for storing the four elements of a translator: a name, the
+# dicom.tag.Tag that can be translated, the private creator string (optional), and
+# the function which takes the DICOM element and returns a dictionary.
+Translator = namedtuple('Translator', ['name', 'tag', 'priv_creator', 'trans_func'])
+
 
 def simplify_csa_dict(csa_dict):
-    '''Simplify the result of nibabel.nicom.csareader.
+    """Simplify the result of nibabel.nicom.csareader.
 
     Parameters
     ----------
@@ -75,7 +82,7 @@ def simplify_csa_dict(csa_dict):
         Result where the keys come from the 'tags' sub dictionary of `csa_dict`.
         The values come from the 'items' within that tags sub sub dictionary.
         If items has only one element it will be unpacked from the list.
-    '''
+    """
     if csa_dict is None:
         return None
 
@@ -90,62 +97,63 @@ def simplify_csa_dict(csa_dict):
             result[tag] = items
     return result
 
+
 def csa_image_trans_func(elem):
-    '''Function for translating the CSA image sub header.'''
+    """Function for translating the CSA image sub header."""
     return simplify_csa_dict(csareader.read(elem.value))
 
-csa_image_trans = Translator('CsaImage',
-                             dicom.tag.Tag(0x29, 0x1010),
-                             'SIEMENS CSA HEADER',
-                             csa_image_trans_func)
-'''Translator for the CSA image sub header.'''
+
+# Translator for the CSA image sub header.
+csa_image_trans = Translator('CsaImage', dicom.tag.Tag(0x29, 0x1010), 'SIEMENS CSA HEADER', csa_image_trans_func)
+
 
 class PhoenixParseError(Exception):
     def __init__(self, line):
-        '''Exception indicating a error parsing a line from the Phoenix
+        """Exception indicating a error parsing a line from the Phoenix
         Protocol.
-        '''
+        """
         self.line = line
 
     def __str__(self):
         return 'Unable to parse phoenix protocol line: %s' % self.line
 
+
 def _parse_phoenix_line(line, str_delim='""'):
     delim_len = len(str_delim)
-    #Handle most comments (not always when string literal involved)
+    # Handle most comments (not always when string literal involved)
     comment_idx = line.find('#')
     if comment_idx != -1:
-        #Check if the pound sign is in a string literal
+        # Check if the pound sign is in a string literal
         if line[:comment_idx].count(str_delim) == 1:
             if line[comment_idx:].find(str_delim) == -1:
                 raise PhoenixParseError(line)
         else:
             line = line[:comment_idx]
 
-    #Allow empty lines
+    # Allow empty lines
     if line.strip() == '':
         return None
 
-    #Find the first equals sign and use that to split key/value
+    # Find the first equals sign and use that to split key/value
     equals_idx = line.find('=')
     if equals_idx == -1:
         raise PhoenixParseError(line)
     key = line[:equals_idx].strip()
     val_str = line[equals_idx + 1:].strip()
 
-    #If there is a string literal, pull that out
+    # If there is a string literal, pull that out
     if val_str.startswith(str_delim):
         end_quote = val_str[delim_len:].find(str_delim) + delim_len
         if end_quote == -1:
             raise PhoenixParseError(line)
         elif not end_quote == len(val_str) - delim_len:
-            #Make sure remainder is just comment
+            # Make sure remainder is just comment
             if not val_str[end_quote+delim_len:].strip().startswith('#'):
                 raise PhoenixParseError(line)
 
         return (key, val_str[2:end_quote])
 
-    else: #Otherwise try to convert to an int or float
+    else:  # Otherwise try to convert to an int or float
         val = None
         try:
             val = int(val_str)
@@ -170,8 +178,9 @@ def _parse_phoenix_line(line, str_delim='""'):
 
     raise PhoenixParseError(line)
 
+
 def parse_phoenix_prot(prot_key, prot_val):
-    '''Parse the MrPheonixProtocol string.
+    """Parse the MrPheonixProtocol string.
 
     Parameters
     ----------
@@ -186,7 +195,7 @@ def parse_phoenix_prot(prot_key, prot_val):
     Raises
     ------
     PhoenixParseError : A line of the ASCCONV section could not be parsed.
-    '''
+    """
     if prot_key == 'MrPhoenixProtocol':
         str_delim = '""'
     elif prot_key == 'MrProtocol':
@@ -205,11 +214,12 @@ def parse_phoenix_prot(prot_key, prot_val):
 
     return result
 
+
 def csa_series_trans_func(elem):
-    '''Function for parsing the CSA series sub header.'''
+    """Function for parsing the CSA series sub header."""
     csa_dict = simplify_csa_dict(csareader.read(elem.value))
 
-    #If there is a phoenix protocol, parse it and dump it into the csa_dict
+    # If there is a phoenix protocol, parse it and dump it into the csa_dict
     phx_src = None
     if 'MrPhoenixProtocol' in csa_dict:
         phx_src = 'MrPhoenixProtocol'
@@ -225,36 +235,36 @@ def csa_series_trans_func(elem):
 
     return csa_dict
 
-csa_series_trans = Translator('CsaSeries',
-                              dicom.tag.Tag(0x29, 0x1020),
-                              'SIEMENS CSA HEADER',
-                              csa_series_trans_func)
-'''Translator for parsing the CSA series sub header.'''
+
+# Translator for parsing the CSA series sub header.
+csa_series_trans = Translator('CsaSeries', dicom.tag.Tag(0x29, 0x1020), 'SIEMENS CSA HEADER', csa_series_trans_func)
 
 
-default_translators = (csa_image_trans,
-                       csa_series_trans,
-                      )
-'''Default translators for MetaExtractor.'''
+# Default translators for MetaExtractor."""
+default_translators = (csa_image_trans, csa_series_trans,)
+
 
 def tag_to_str(tag):
-    '''Convert a DICOM tag to a string representation using the group and
-    element hex values seprated by an underscore.'''
+    """Convert a DICOM tag to a string representation using the group and
+    element hex values seprated by an underscore."""
     return '%#X_%#X' % (tag.group, tag.elem)
 
-unpack_vr_map = {'SL' : 'i',
-                 'UL' : 'I',
-                 'FL' : 'f',
-                 'FD' : 'd',
-                 'SS' : 'h',
-                 'US' : 'H',
-                 'US or SS' : 'H',
-                 }
-'''Dictionary mapping value representations to corresponding format strings for
-the struct.unpack function.'''
+
+# Dictionary mapping value representations to corresponding format strings for
+# the struct.unpack function.
+unpack_vr_map = {
+    'SL': 'i',
+    'UL': 'I',
+    'FL': 'f',
+    'FD': 'd',
+    'SS': 'h',
+    'US': 'H',
+    'US or SS': 'H',
+}
+
 
 def tm_to_seconds(time_str):
-    '''Convert a DICOM time value (value representation of 'TM') to the number
+    """Convert a DICOM time value (value representation of 'TM') to the number
     of seconds past midnight.
 
     Parameters
@@ -265,11 +275,11 @@ def tm_to_seconds(time_str):
     Returns
     -------
     A floating point representing the number of seconds past midnight
-    '''
-    #Allow ACR/NEMA style format by removing any colon chars
+    """
+    # Allow ACR/NEMA style format by removing any colon chars
     time_str = time_str.replace(':', '')
 
-    #Only the hours portion is required
+    # Only the hours portion is required
     result = int(time_str[:2]) * 3600
 
     str_len = len(time_str)
@@ -280,13 +290,14 @@ def tm_to_seconds(time_str):
 
     return float(result)
 
+
 def get_text(byte_str):
-    '''If the given byte string contains text data return it as unicode,
+    """If the given byte string contains text data return it as unicode,
     otherwise return None.
 
     If the 'chardet' package is installed, this will be used to detect the
     text encoding. Otherwise the input will only be decoded if it is ASCII.
-    '''
+    """
     if have_chardet:
         match = chardet.detect(byte_str)
         if match['encoding'] is None:
@@ -299,20 +310,23 @@ def get_text(byte_str):
         else:
             return byte_str.decode('ascii')
 
-default_conversions = {'DS' : float,
-                       'IS' : int,
-                       'AT' : str,
-                       'OW' : get_text,
-                       'OB' : get_text,
-                       'OW or OB' : get_text,
-                       'OB or OW' : get_text,
-                       'UN' : get_text,
-                       'PN' : str,
-                       'UI' : str,
-                      }
+
+default_conversions = {
+    'DS': float,
+    'IS': int,
+    'AT': bytes,
+    'OW': get_text,
+    'OB': get_text,
+    'OW or OB': get_text,
+    'OB or OW': get_text,
+    'UN': get_text,
+    'PN': str,
+    'UI': str,
+}
+
 
 class MetaExtractor(object):
-    '''Callable object for extracting meta data from a dicom dataset.
+    """Callable object for extracting meta data from a dicom dataset.
     Initialize with a set of ignore rules, translators, and type
     conversions.
 
@@ -334,7 +348,7 @@ class MetaExtractor(object):
 
     warn_on_trans_except : bool
         Convert any exceptions from translators into warnings.
-    '''
+    """
 
     def __init__(self, ignore_rules=None, translators=None, conversions=None,
                  warn_on_trans_except=True):
@@ -353,11 +367,11 @@ class MetaExtractor(object):
         self.warn_on_trans_except = warn_on_trans_except
 
     def _get_elem_key(self, elem):
-        '''Get the key for any non-translated elements.'''
-        #Use standard DICOM keywords if possible
+        """Get the key for any non-translated elements."""
+        # Use standard DICOM keywords if possible
         key = keyword_for_tag(elem.tag)
 
-        #For private tags we take elem.name and convert to camel case
+        # For private tags we take elem.name and convert to camel case
         if key == '':
             key = elem.name
             if key.startswith('[') and key.endswith(']'):
@@ -369,10 +383,10 @@ class MetaExtractor(object):
         return key
 
     def _get_elem_value(self, elem):
-        '''Get the value for any non-translated elements'''
-        #If the VR is implicit, we may need to unpack the values from a byte
-        #string. This may require us to make an assumption about whether the
-        #value is signed or not, but this is unavoidable.
+        """Get the value for any non-translated elements"""
+        # If the VR is implicit, we may need to unpack the values from a byte
+        # string. This may require us to make an assumption about whether the
+        # value is signed or not, but this is unavoidable.
         if elem.VR in unpack_vr_map and isinstance(elem.value, str):
             n_vals = len(elem.value)/struct.calcsize(unpack_vr_map[elem.VR])
             if n_vals != elem.VM:
@@ -385,14 +399,14 @@ class MetaExtractor(object):
                                            elem.value)
                             )
         else:
-            #Otherwise, just take a copy if the value is a list
+            # Otherwise, just take a copy if the value is a list
             n_vals = elem.VM
             if n_vals > 1:
                 value = elem.value[:]
             else:
                 value = elem.value
 
-        #Handle any conversions
+        # Handle any conversions
         if elem.VR in self.conversions:
             if n_vals == 1:
                 value = self.conversions[elem.VR](value)
@@ -402,7 +416,7 @@ class MetaExtractor(object):
         return value
 
     def __call__(self, dcm):
-        '''Extract the meta data from a DICOM dataset.
+        """Extract the meta data from a DICOM dataset.
 
         Parameters
         ----------
@@ -421,11 +435,11 @@ class MetaExtractor(object):
         they produce. Values are unchanged, except when the value
         representation is 'DS' or 'IS' (decimal/integer strings) they are
         converted to float and int types.
-        '''
+        """
         standard_meta = []
         trans_meta_dicts = OrderedDict()
 
-        #Make dict to track which tags map to which translators
+        # Make dict to track which tags map to which translators
         trans_map = {}
 
         # Convert text elements to unicode
@@ -435,11 +449,11 @@ class MetaExtractor(object):
             if isinstance(elem.value, str) and elem.value.strip() == '':
                 continue
 
-            #Get the name for non-translated elements
+            # Get the name for non-translated elements
             name = self._get_elem_key(elem)
 
-            #If it is a private creator element, setup any corresponding
-            #translators
+            # If it is a private creator element, setup any corresponding
+            # translators
             if elem.name == "Private Creator":
                 for translator in self.translators:
                     if translator.priv_creator == elem.value:
@@ -451,7 +465,7 @@ class MetaExtractor(object):
                                              'for tag: %s' % new_tag)
                         trans_map[new_tag] = translator
 
-            #If there is a translator for this element, use it
+            # If there is a translator for this element, use it
             if elem.tag in trans_map:
                 try:
                     meta = trans_map[elem.tag].trans_func(elem)
@@ -465,10 +479,10 @@ class MetaExtractor(object):
                 else:
                     if meta:
                         trans_meta_dicts[trans_map[elem.tag].name] = meta
-            #Otherwise see if we are supposed to ignore the element
+            # Otherwise see if we are supposed to ignore the element
             elif any(rule(elem) for rule in self.ignore_rules):
                 continue
-            #Handle elements that are sequences with recursion
+            # Handle elements that are sequences with recursion
             elif isinstance(elem.value, dicom.sequence.Sequence):
                 value = []
                 for val in elem.value:
@@ -476,14 +490,14 @@ class MetaExtractor(object):
                 if all(x is None for x in value):
                     continue
                 standard_meta.append((name, value, elem.tag))
-            #Otherwise just make sure the value is unpacked
+            # Otherwise just make sure the value is unpacked
             else:
                 value = self._get_elem_value(elem)
                 if value is None:
                     continue
                 standard_meta.append((name, value, elem.tag))
 
-        #Handle name collisions
+        # Handle name collisions
         name_counts = defaultdict(int)
         for elem in standard_meta:
             name_counts[elem[0]] += 1
@@ -493,7 +507,7 @@ class MetaExtractor(object):
                 name = name + '_' + tag_to_str(tag)
             result[name] = value
 
-        #Inject translator results
+        # Inject translator results
         for trans_name, meta in trans_meta_dicts.items():
             for name, value in meta.items():
                 name = '%s.%s' % (trans_name, name)
@@ -501,10 +515,11 @@ class MetaExtractor(object):
 
         return result
 
+
 def minimal_extractor(dcm):
-    '''Meta data extractor that just extracts the minimal set of keys needed
+    """Meta data extractor that just extracts the minimal set of keys needed
     by DicomStack objects.
-    '''
+    """
     result = {}
     for key in DicomStack.minimal_keys:
         try:
@@ -513,5 +528,6 @@ def minimal_extractor(dcm):
             pass
     return result
 
+
+# The default `MetaExtractor`.
 default_extractor = MetaExtractor()
-'''The default `MetaExtractor`.'''
