@@ -8,11 +8,7 @@ import numpy as np
 import nibabel as nb
 from nibabel.nifti1 import Nifti1Extension
 from nibabel.spatialimages import HeaderDataError
-
-try:
-    from collections import OrderedDict
-except ImportError:
-    from ordereddict import OrderedDict
+from collections import OrderedDict
 
 with warnings.catch_warnings():
     warnings.simplefilter('ignore')
@@ -22,26 +18,28 @@ dcm_meta_ecode = 0
 
 _meta_version = 0.6
 
-_req_base_keys_map= {0.5 : set(('dcmmeta_affine',
-                                'dcmmeta_slice_dim',
-                                'dcmmeta_shape',
-                                'dcmmeta_version',
-                                'global',
-                                )
-                               ),
-                     0.6 : set(('dcmmeta_affine',
-                                'dcmmeta_reorient_transform',
-                                'dcmmeta_slice_dim',
-                                'dcmmeta_shape',
-                                'dcmmeta_version',
-                                'global',
-                                )
-                               ),
-                    }
-'''Minimum required keys in the base dictionaty to be considered valid'''
+# Minimum required keys in the base dictionary to be considered valid
+_req_base_keys_map = {
+    0.5: {
+        'dcmmeta_affine',
+        'dcmmeta_slice_dim',
+        'dcmmeta_shape',
+        'dcmmeta_version',
+        'global'
+    },
+    0.6: {
+        'dcmmeta_affine',
+        'dcmmeta_reorient_transform',
+        'dcmmeta_slice_dim',
+        'dcmmeta_shape',
+        'dcmmeta_version',
+        'global',
+    }
+}
+
 
 def is_constant(sequence, period=None):
-    '''Returns true if all elements in (each period of) the sequence are equal.
+    """Returns true if all elements in (each period of) the sequence are equal.
 
     Parameters
     ----------
@@ -50,7 +48,7 @@ def is_constant(sequence, period=None):
 
     period : int
         If not None then each subsequence of that length is checked.
-    '''
+    """
     if period is None:
         return all(val == sequence[0] for val in sequence)
     else:
@@ -70,8 +68,9 @@ def is_constant(sequence, period=None):
 
     return True
 
+
 def is_repeating(sequence, period):
-    '''Returns true if the elements in the sequence repeat with the given
+    """Returns true if the elements in the sequence repeat with the given
     period.
 
     Parameters
@@ -81,7 +80,7 @@ def is_repeating(sequence, period):
 
     period : int
         The period over which the elements should repeat.
-    '''
+    """
     seq_len = len(sequence)
     if period <= 1 or period >= seq_len:
         raise ValueError('The period must be greater than one and less than '
@@ -98,9 +97,10 @@ def is_repeating(sequence, period):
 
     return True
 
+
 class InvalidExtensionError(Exception):
     def __init__(self, msg):
-        '''Exception denoting than a DcmMetaExtension is invalid.'''
+        """Exception denoting than a DcmMetaExtension is invalid."""
         self.msg = msg
 
     def __str__(self):
@@ -108,15 +108,15 @@ class InvalidExtensionError(Exception):
 
 
 class DcmMetaExtension(Nifti1Extension):
-    '''Nifti extension for storing a summary of the meta data from the source
+    """Nifti extension for storing a summary of the meta data from the source
     DICOM files.
-    '''
+    """
 
     @property
     def reorient_transform(self):
-        '''The transformation due to reorientation of the data array. Can be
+        """The transformation due to reorientation of the data array. Can be
         used to update directional DICOM meta data (after converting to RAS if
-        needed) into the same space as the affine.'''
+        needed) into the same space as the affine."""
         if self.version < 0.6:
             return None
         if self._content['dcmmeta_reorient_transform'] is None:
@@ -135,8 +135,8 @@ class DcmMetaExtension(Nifti1Extension):
 
     @property
     def affine(self):
-        '''The affine associated with the meta data. If this differs from the
-        image affine, the per-slice meta data will not be used. '''
+        """The affine associated with the meta data. If this differs from the
+        image affine, the per-slice meta data will not be used. """
         return np.array(self._content['dcmmeta_affine'])
 
     @affine.setter
@@ -147,8 +147,8 @@ class DcmMetaExtension(Nifti1Extension):
 
     @property
     def slice_dim(self):
-        '''The index of the slice dimension associated with the per-slice
-        meta data.'''
+        """The index of the slice dimension associated with the per-slice
+        meta data."""
         return self._content['dcmmeta_slice_dim']
 
     @slice_dim.setter
@@ -160,8 +160,8 @@ class DcmMetaExtension(Nifti1Extension):
 
     @property
     def shape(self):
-        '''The shape of the data associated with the meta data. Defines the
-        number of values for the meta data classifications.'''
+        """The shape of the data associated with the meta data. Defines the
+        number of values for the meta data classifications."""
         return tuple(self._content['dcmmeta_shape'])
 
     @shape.setter
@@ -173,17 +173,17 @@ class DcmMetaExtension(Nifti1Extension):
 
     @property
     def version(self):
-        '''The version of the meta data extension.'''
+        """The version of the meta data extension."""
         return self._content['dcmmeta_version']
 
     @version.setter
     def version(self, value):
-        '''Set the version of the meta data extension.'''
+        """Set the version of the meta data extension."""
         self._content['dcmmeta_version'] = value
 
     @property
     def slice_normal(self):
-        '''The slice normal associated with the per-slice meta data.'''
+        """The slice normal associated with the per-slice meta data."""
         slice_dim = self.slice_dim
         if slice_dim is None:
             return None
@@ -191,24 +191,25 @@ class DcmMetaExtension(Nifti1Extension):
 
     @property
     def n_slices(self):
-        '''The number of slices associated with the per-slice meta data.'''
+        """The number of slices associated with the per-slice meta data."""
         slice_dim = self.slice_dim
         if slice_dim is None:
             return None
         return self.shape[slice_dim]
 
-    classifications = (('global', 'const'),
-                       ('global', 'slices'),
-                       ('time', 'samples'),
-                       ('time', 'slices'),
-                       ('vector', 'samples'),
-                       ('vector', 'slices'),
-                      )
-    '''The classifications used to separate meta data based on if and how the
-    values repeat. Each class is a tuple with a base class and a sub class.'''
+    # The classifications used to separate meta data based on if and how the
+    # values repeat. Each class is a tuple with a base class and a sub class.
+    classifications = (
+        ('global', 'const'),
+        ('global', 'slices'),
+        ('time', 'samples'),
+        ('time', 'slices'),
+        ('vector', 'samples'),
+        ('vector', 'slices'),
+    )
 
     def get_valid_classes(self):
-        '''Return the meta data classifications that are valid for this
+        """Return the meta data classifications that are valid for this
         extension.
 
         Returns
@@ -217,7 +218,7 @@ class DcmMetaExtension(Nifti1Extension):
             The classifications that are valid for this extension (based on its
             shape).
 
-        '''
+        """
         shape = self.shape
         n_dims = len(shape)
         if n_dims == 3:
@@ -233,7 +234,7 @@ class DcmMetaExtension(Nifti1Extension):
             raise ValueError("There must be 3 to 5 dimensions.")
 
     def get_multiplicity(self, classification):
-        '''Get the number of meta data values for all meta data of the provided
+        """Get the number of meta data values for all meta data of the provided
         classification.
 
         Parameters
@@ -246,7 +247,7 @@ class DcmMetaExtension(Nifti1Extension):
         multiplicity : int
             The number of values for any meta data of the provided
             `classification`.
-        '''
+        """
         if not classification in self.get_valid_classes():
             raise ValueError("Invalid classification: %s" % classification)
 
@@ -273,7 +274,7 @@ class DcmMetaExtension(Nifti1Extension):
         return n_vals
 
     def check_valid(self):
-        '''Check if the extension is valid.
+        """Check if the extension is valid.
 
         Raises
         ------
@@ -281,12 +282,12 @@ class DcmMetaExtension(Nifti1Extension):
             The extension is missing required meta data or classifications, or
             some element(s) have the wrong number of values for their
             classification.
-        '''
-        #Check for the required base keys in the json data
+        """
+        # Check for the required base keys in the json data
         if not _req_base_keys_map[self.version] <= set(self._content):
             raise InvalidExtensionError('Missing one or more required keys')
 
-        #Check the orientation/shape/version
+        # Check the orientation/shape/version
         if self.affine.shape != (4, 4):
             raise InvalidExtensionError('Affine has incorrect shape')
         slice_dim = self.slice_dim
@@ -296,8 +297,8 @@ class DcmMetaExtension(Nifti1Extension):
         if not (3 <= len(self.shape) < 6):
             raise InvalidExtensionError('Shape is not valid')
 
-        #Check all required meta dictionaries, make sure values have correct
-        #multiplicity
+        # Check all required meta dictionaries, make sure values have correct
+        # multiplicity
         valid_classes = self.get_valid_classes()
         for classes in valid_classes:
             if not classes[0] in self._content:
@@ -322,7 +323,7 @@ class DcmMetaExtension(Nifti1Extension):
                               )
                         raise InvalidExtensionError(msg)
 
-        #Check that all keys are uniquely classified
+        # Check that all keys are uniquely classified
         for classes in valid_classes:
             for other_classes in valid_classes:
                 if classes == other_classes:
@@ -335,14 +336,14 @@ class DcmMetaExtension(Nifti1Extension):
                                                 "multiple classifications")
 
     def get_keys(self):
-        '''Get a list of all the meta data keys that are available.'''
+        """Get a list of all the meta data keys that are available."""
         keys = []
         for base_class, sub_class in self.get_valid_classes():
             keys += list(self._content[base_class][sub_class].keys())
         return keys
 
     def get_classification(self, key):
-        '''Get the classification for the given `key`.
+        """Get the classification for the given `key`.
 
         Parameters
         ----------
@@ -355,7 +356,7 @@ class DcmMetaExtension(Nifti1Extension):
             The classification tuple for the provided key or None if the key is
             not found.
 
-        '''
+        """
         for base_class, sub_class in self.get_valid_classes():
             if key in self._content[base_class][sub_class]:
                     return (base_class, sub_class)
@@ -363,7 +364,7 @@ class DcmMetaExtension(Nifti1Extension):
         return None
 
     def get_class_dict(self, classification):
-        '''Get the dictionary for the given classification.
+        """Get the dictionary for the given classification.
 
         Parameters
         ----------
@@ -374,12 +375,12 @@ class DcmMetaExtension(Nifti1Extension):
         -------
         meta_dict : dict
             The dictionary for the provided classification.
-        '''
+        """
         base, sub = classification
         return self._content[base][sub]
 
     def get_values(self, key):
-        '''Get all values for the provided key.
+        """Get all values for the provided key.
 
         Parameters
         ----------
@@ -391,14 +392,14 @@ class DcmMetaExtension(Nifti1Extension):
         values
              The value or values for the given key. The number of values
              returned depends on the classification (see 'get_multiplicity').
-        '''
+        """
         classification = self.get_classification(key)
         if classification is None:
             return None
         return self.get_class_dict(classification)[key]
 
     def get_values_and_class(self, key):
-        '''Get the values and the classification for the provided key.
+        """Get the values and the classification for the provided key.
 
         Parameters
         ----------
@@ -410,14 +411,14 @@ class DcmMetaExtension(Nifti1Extension):
         vals_and_class : tuple
             None for both the value and classification if the key is not found.
 
-        '''
+        """
         classification = self.get_classification(key)
         if classification is None:
             return (None, None)
         return (self.get_class_dict(classification)[key], classification)
 
     def filter_meta(self, filter_func):
-        '''Filter the meta data.
+        """Filter the meta data.
 
         Parameters
         ----------
@@ -425,7 +426,7 @@ class DcmMetaExtension(Nifti1Extension):
             Must take a key and values as parameters and return True if they
             should be filtered out.
 
-        '''
+        """
         for classes in self.get_valid_classes():
             filtered = []
             curr_dict = self.get_class_dict(classes)
@@ -436,13 +437,13 @@ class DcmMetaExtension(Nifti1Extension):
                 del curr_dict[key]
 
     def clear_slice_meta(self):
-        '''Clear all meta data that is per slice.'''
+        """Clear all meta data that is per slice."""
         for base_class, sub_class in self.get_valid_classes():
             if sub_class == 'slices':
                 self.get_class_dict((base_class, sub_class)).clear()
 
     def get_subset(self, dim, idx):
-        '''Get a DcmMetaExtension containing a subset of the meta data.
+        """Get a DcmMetaExtension containing a subset of the meta data.
 
         Parameters
         ----------
@@ -457,14 +458,14 @@ class DcmMetaExtension(Nifti1Extension):
         result : DcmMetaExtension
             A new DcmMetaExtension corresponding to the subset.
 
-        '''
+        """
         if not 0 <= dim < 5:
             raise ValueError("The argument 'dim' must be in the range [0, 5).")
 
         shape = self.shape
         valid_classes = self.get_valid_classes()
 
-        #Make an empty extension for the result
+        # Make an empty extension for the result
         result_shape = list(shape)
         result_shape[dim] = 1
         while result_shape[-1] == 1 and len(result_shape) > 3:
@@ -476,7 +477,7 @@ class DcmMetaExtension(Nifti1Extension):
                                 )
 
         for src_class in valid_classes:
-            #Constants remain constant
+            # Constants remain constant
             if src_class == ('global', 'const'):
                 for key, val in self.get_class_dict(src_class).items():
                     result.get_class_dict(src_class)[key] = deepcopy(val)
@@ -499,13 +500,13 @@ class DcmMetaExtension(Nifti1Extension):
         return result
 
     def to_json(self):
-        '''Return the extension encoded as a JSON string.'''
+        """Return the extension encoded as a JSON string."""
         self.check_valid()
         return self._mangle(self._content)
 
     @classmethod
     def from_json(klass, json_str):
-        '''Create an extension from the JSON string representation.'''
+        """Create an extension from the JSON string representation."""
         result = klass(dcm_meta_ecode, json_str)
         result.check_valid()
         return result
@@ -513,7 +514,7 @@ class DcmMetaExtension(Nifti1Extension):
     @classmethod
     def make_empty(klass, shape, affine, reorient_transform=None,
                    slice_dim=None):
-        '''Make an empty DcmMetaExtension.
+        """Make an empty DcmMetaExtension.
 
         Parameters
         ----------
@@ -537,7 +538,7 @@ class DcmMetaExtension(Nifti1Extension):
             An empty DcmMetaExtension with the required values set to the
             given arguments.
 
-        '''
+        """
         result = klass(dcm_meta_ecode, '{}')
         result._content['global'] = OrderedDict()
         result._content['global']['const'] = OrderedDict()
@@ -564,9 +565,9 @@ class DcmMetaExtension(Nifti1Extension):
 
     @classmethod
     def from_runtime_repr(klass, runtime_repr):
-        '''Create an extension from the Python runtime representation (nested
+        """Create an extension from the Python runtime representation (nested
         dictionaries).
-        '''
+        """
         result = klass(dcm_meta_ecode, '{}')
         result._content = runtime_repr
         result.check_valid()
@@ -574,7 +575,7 @@ class DcmMetaExtension(Nifti1Extension):
 
     @classmethod
     def from_sequence(klass, seq, dim, affine=None, slice_dim=None):
-        '''Create an extension from a sequence of extensions.
+        """Create an extension from a sequence of extensions.
 
         Parameters
         ----------
@@ -597,7 +598,7 @@ class DcmMetaExtension(Nifti1Extension):
         result : DcmMetaExtension
             The result of merging the extensions in `seq` along the dimension
             `dim`.
-        '''
+        """
         if not 0 <= dim < 5:
             raise ValueError("The argument 'dim' must be in the range [0, 5).")
 
@@ -624,7 +625,7 @@ class DcmMetaExtension(Nifti1Extension):
                                   None,
                                   slice_dim)
 
-        #Need to initialize the result with the first extension in 'seq'
+        # Need to initialize the result with the first extension in 'seq'
         result_slc_norm = result.slice_normal
         first_slc_norm = first_input.slice_normal
         use_slices = (not result_slc_norm is None and
@@ -636,19 +637,19 @@ class DcmMetaExtension(Nifti1Extension):
             result._content[classes[0]][classes[1]] = \
                 deepcopy(first_input.get_class_dict(classes))
 
-        #Adjust the shape to what the extension actually contains
+        # Adjust the shape to what the extension actually contains
         shape = list(result.shape)
         shape[dim] = 1
         result.shape = shape
 
-        #Initialize reorient transform
+        # Initialize reorient transform
         reorient_transform = first_input.reorient_transform
 
-        #Add the other extensions, updating the shape as we go
+        # Add the other extensions, updating the shape as we go
         for input_ext in seq[1:]:
-            #If the affines or reorient_transforms don't match, we set the
-            #reorient_transform to None as we can not reliably use it to update
-            #directional meta data
+            # If the affines or reorient_transforms don't match, we set the
+            # reorient_transform to None as we can not reliably use it to update
+            # directional meta data
             if ((reorient_transform is None or
                  input_ext.reorient_transform is None) or
                 not (np.allclose(input_ext.affine, affine) or
@@ -661,10 +662,10 @@ class DcmMetaExtension(Nifti1Extension):
             shape[dim] += 1
             result.shape = shape
 
-        #Set the reorient transform
+        # Set the reorient transform
         result.reorient_transform = reorient_transform
 
-        #Try simplifying any keys in global slices
+        # Try simplifying any keys in global slices
         for key in list(result.get_class_dict(('global', 'slices')).keys()):
             result._simplify(key)
 
@@ -690,81 +691,91 @@ class DcmMetaExtension(Nifti1Extension):
         return True
 
     def _unmangle(self, value):
-        '''Go from extension data to runtime representation.'''
-        #Its not possible to preserve order while loading with python 2.6
+        """Go from extension data to runtime representation."""
+        # Its not possible to preserve order while loading with python 2.6
         kwargs = {}
         if sys.version_info >= (2, 7):
             kwargs['object_pairs_hook'] = OrderedDict
         return json.loads(value, **kwargs)
 
     def _mangle(self, value):
-        '''Go from runtime representation to extension data.'''
+        """Go from runtime representation to extension data."""
         return json.dumps(value, indent=4)
 
-    _const_tests = {('global', 'slices') : (('global', 'const'),
-                                            ('vector', 'samples'),
-                                            ('time', 'samples')
-                                           ),
-                    ('vector', 'slices') : (('global', 'const'),
-                                            ('time', 'samples')
-                                           ),
-                    ('time', 'slices') : (('global', 'const'),
-                                         ),
-                    ('time', 'samples') : (('global', 'const'),
-                                           ('vector', 'samples'),
-                                          ),
-                    ('vector', 'samples') : (('global', 'const'),)
-                   }
-    '''Classification mapping showing possible reductions in multiplicity for
-    values that are constant with some period.'''
+    # Classification mapping showing possible reductions in multiplicity for
+    # values that are constant with some period.
+    _const_tests = {
+        ('global', 'slices'): (
+            ('global', 'const'),
+            ('vector', 'samples'),
+            ('time', 'samples')
+        ),
+        ('vector', 'slices'): (
+            ('global', 'const'),
+            ('time', 'samples')
+        ),
+        ('time', 'slices'): (
+            ('global', 'const'),
+        ),
+        ('time', 'samples'): (
+            ('global', 'const'),
+            ('vector', 'samples'),
+        ),
+        ('vector', 'samples'): (
+            ('global', 'const'),)
+    }
 
     def _get_const_period(self, src_cls, dest_cls):
-        '''Get the period over which we test for const-ness with for the
-        given classification change.'''
+        """Get the period over which we test for const-ness with for the
+        given classification change."""
         if dest_cls == ('global', 'const'):
             return None
         elif src_cls == ('global', 'slices'):
             return self.get_multiplicity(src_cls) / self.get_multiplicity(dest_cls)
-        elif src_cls == ('vector', 'slices'): #implies dest_cls == ('time', 'samples'):
+        elif src_cls == ('vector', 'slices'):  # implies dest_cls == ('time', 'samples'):
             return  self.n_slices
-        elif src_cls == ('time', 'samples'): #implies dest_cls == ('vector', 'samples')
+        elif src_cls == ('time', 'samples'):  # implies dest_cls == ('vector', 'samples')
             return self.shape[3]
-        assert False #Should take one of the above branches
+        assert False  # Should take one of the above branches
 
-    _repeat_tests = {('global', 'slices') : (('time', 'slices'),
-                                             ('vector', 'slices')
-                                            ),
-                     ('vector', 'slices') : (('time', 'slices'),),
-                    }
-    '''Classification mapping showing possible reductions in multiplicity for
-    values that are repeating with some period.'''
+    # Classification mapping showing possible reductions in multiplicity for
+    # values that are repeating with some period.
+    _repeat_tests = {
+        ('global', 'slices'): (
+            ('time', 'slices'),
+            ('vector', 'slices')
+        ),
+        ('vector', 'slices'): (
+            ('time', 'slices'),
+        ),
+    }
 
     def _simplify(self, key):
-        '''Try to simplify (reduce the multiplicity) of a single meta data
+        """Try to simplify (reduce the multiplicity) of a single meta data
         element by changing its classification. Return True if the
         classification is changed, otherwise False.
 
         Looks for values that are constant or repeating with some pattern.
         Constant elements with a value of None will be deleted.
-        '''
+        """
         values, curr_class = self.get_values_and_class(key)
 
-        #If the class is global const then just delete it if the value is None
+        # If the class is global const then just delete it if the value is None
         if curr_class == ('global', 'const'):
             if values is None:
                 del self.get_class_dict(curr_class)[key]
                 return True
             return False
 
-        #Test if the values are constant with some period
+        # Test if the values are constant with some period
         dests = self._const_tests[curr_class]
         for dest_cls in dests:
             if dest_cls[0] in self._content:
                 period = self._get_const_period(curr_class, dest_cls)
-                #If the period is one, the two classifications have the
-                #same multiplicity so we are dealing with a degenerate
-                #case (i.e. single slice data). Just change the
-                #classification to the "simpler" one in this case
+                # If the period is one, the two classifications have the
+                # same multiplicity so we are dealing with a degenerate
+                # case (i.e. single slice data). Just change the
+                # classification to the "simpler" one in this case
                 if period == 1 or is_constant(values, period):
                     if period is None:
                         self.get_class_dict(dest_cls)[key] = \
@@ -773,7 +784,7 @@ class DcmMetaExtension(Nifti1Extension):
                         self.get_class_dict(dest_cls)[key] = \
                             values[::period]
                     break
-        else: #Otherwise test if values are repeating with some period
+        else:  # Otherwise test if values are repeating with some period
             if curr_class in self._repeat_tests:
                 for dest_cls in self._repeat_tests[curr_class]:
                     if dest_cls[0] in self._content:
@@ -782,7 +793,7 @@ class DcmMetaExtension(Nifti1Extension):
                             self.get_class_dict(dest_cls)[key] = \
                                 values[:dest_mult]
                             break
-                else: #Can't simplify
+                else:  # Can't simplify
                     return False
             else:
                 return False
@@ -790,39 +801,46 @@ class DcmMetaExtension(Nifti1Extension):
         del self.get_class_dict(curr_class)[key]
         return True
 
-    _preserving_changes = {None : (('global', 'const'),
-                                   ('vector', 'samples'),
-                                   ('time', 'samples'),
-                                   ('time', 'slices'),
-                                   ('vector', 'slices'),
-                                   ('global', 'slices'),
-                                  ),
-                           ('global', 'const') : (('vector', 'samples'),
-                                                  ('time', 'samples'),
-                                                  ('time', 'slices'),
-                                                  ('vector', 'slices'),
-                                                  ('global', 'slices'),
-                                                 ),
-                           ('vector', 'samples') : (('time', 'samples'),
-                                                    ('global', 'slices'),
-                                                   ),
-                           ('time', 'samples') : (('global', 'slices'),
-                                                 ),
-                           ('time', 'slices') : (('vector', 'slices'),
-                                                 ('global', 'slices'),
-                                                ),
-                           ('vector', 'slices') : (('global', 'slices'),
-                                                  ),
-                           ('global', 'slices') : tuple(),
-                          }
-    '''Classification mapping showing allowed changes when increasing the
-    multiplicity.'''
+    # Classification mapping showing allowed changes when increasing the
+    # multiplicity.
+    _preserving_changes = {
+        None: (
+            ('global', 'const'),
+            ('vector', 'samples'),
+            ('time', 'samples'),
+            ('time', 'slices'),
+            ('vector', 'slices'),
+            ('global', 'slices'),
+        ),
+        ('global', 'const'): (
+            ('vector', 'samples'),
+            ('time', 'samples'),
+            ('time', 'slices'),
+            ('vector', 'slices'),
+            ('global', 'slices'),
+        ),
+        ('vector', 'samples'): (
+            ('time', 'samples'),
+            ('global', 'slices'),
+        ),
+        ('time', 'samples'): (
+            ('global', 'slices'),
+        ),
+        ('time', 'slices'): (
+            ('vector', 'slices'),
+            ('global', 'slices'),
+        ),
+        ('vector', 'slices'): (
+            ('global', 'slices'),
+        ),
+        ('global', 'slices'): tuple(),
+    }
 
     def _get_changed_class(self, key, new_class, slice_dim=None):
-        '''Get an array of values corresponding to a single meta data
+        """Get an array of values corresponding to a single meta data
         element with its classification changed by increasing its
         multiplicity. This will preserve all the meta data and allow easier
-        merging of values with different classifications.'''
+        merging of values with different classifications."""
         values, curr_class = self.get_values_and_class(key)
         if curr_class == new_class:
             return values
@@ -838,7 +856,7 @@ class DcmMetaExtension(Nifti1Extension):
             per_slice = curr_class[1] == 'slices'
         if new_class in self.get_valid_classes():
             new_mult = self.get_multiplicity(new_class)
-            #Only way we get 0 for mult is if slice dim is undefined
+            # Only way we get 0 for mult is if slice dim is undefined
             if new_mult == 0:
                 new_mult = self.shape[slice_dim]
         else:
@@ -846,7 +864,6 @@ class DcmMetaExtension(Nifti1Extension):
         mult_fact = new_mult / curr_mult
         if curr_mult == 1:
             values = [values]
-
 
         if per_slice:
             result = values * mult_fact
@@ -860,10 +877,9 @@ class DcmMetaExtension(Nifti1Extension):
 
         return result
 
-
     def _change_class(self, key, new_class):
-        '''Change the classification of the meta data element in place. See
-        _get_changed_class.'''
+        """Change the classification of the meta data element in place. See
+        _get_changed_class."""
         values, curr_class = self.get_values_and_class(key)
         if curr_class == new_class:
             return
@@ -874,12 +890,10 @@ class DcmMetaExtension(Nifti1Extension):
         if not curr_class is None:
             del self.get_class_dict(curr_class)[key]
 
-
-
     def _copy_slice(self, other, src_class, idx):
-        '''Get a copy of the meta data from the 'other' instance with
+        """Get a copy of the meta data from the 'other' instance with
         classification 'src_class', corresponding to the slice with index
-        'idx'.'''
+        'idx'."""
         if src_class[0] == 'global':
             for classes in (('time', 'samples'),
                             ('vector', 'samples'),
@@ -914,10 +928,10 @@ class DcmMetaExtension(Nifti1Extension):
             self._simplify(key)
 
     def _global_slice_subset(self, key, sample_base, idx):
-        '''Get a subset of the meta data values with the classificaion
+        """Get a subset of the meta data values with the classificaion
         ('global', 'slices') corresponding to a single sample along the
         time or vector dimension (as specified by 'sample_base' and 'idx').
-        '''
+        """
         n_slices = self.n_slices
         shape = self.shape
         src_dict = self.get_class_dict(('global', 'slices'))
@@ -941,16 +955,16 @@ class DcmMetaExtension(Nifti1Extension):
                 return result
 
     def _copy_sample(self, other, src_class, sample_base, idx):
-        '''Get a copy of meta data from 'other' instance with classification
+        """Get a copy of meta data from 'other' instance with classification
         'src_class', corresponding to one sample along the time or vector
-        dimension.'''
+        dimension."""
         assert src_class != ('global', 'const')
         src_dict = other.get_class_dict(src_class)
         if src_class[1] == 'samples':
-            #If we are indexing on the same dim as the src_class we need to
-            #change the classification
+            # If we are indexing on the same dim as the src_class we need to
+            # change the classification
             if src_class[0] == sample_base:
-                #Time samples may become vector samples, otherwise const
+                # Time samples may become vector samples, otherwise const
                 best_dest = None
                 for dest_cls in (('vector', 'samples'),
                                  ('global', 'const')):
@@ -965,7 +979,7 @@ class DcmMetaExtension(Nifti1Extension):
                     for key, vals in src_dict.items():
                         self.get_class_dict(dest_cls)[key] = \
                             deepcopy(vals[idx])
-                else: #We must be doing time samples -> vector samples
+                else:  # We must be doing time samples -> vector samples
                     stride = other.shape[3]
                     for key, vals in src_dict.items():
                         self.get_class_dict(dest_cls)[key] = \
@@ -973,9 +987,9 @@ class DcmMetaExtension(Nifti1Extension):
                     for key in list(src_dict.keys()):
                         self._simplify(key)
 
-            else: #Otherwise classification does not change
-                #The multiplicity will change for time samples if splitting
-                #vector dimension
+            else:  # Otherwise classification does not change
+                # The multiplicity will change for time samples if splitting
+                # vector dimension
                 if src_class == ('time', 'samples'):
                     dest_mult = self.get_multiplicity(src_class)
                     start_idx = idx * dest_mult
@@ -984,10 +998,10 @@ class DcmMetaExtension(Nifti1Extension):
                         self.get_class_dict(src_class)[key] = \
                             deepcopy(vals[start_idx:end_idx])
                         self._simplify(key)
-                else: #Otherwise multiplicity is unchanged
+                else:  # Otherwise multiplicity is unchanged
                     for key, vals in src_dict.items():
                         self.get_class_dict(src_class)[key] = deepcopy(vals)
-        else: #The src_class is per slice
+        else:  # The src_class is per slice
             if src_class[0] == sample_base:
                 best_dest = None
                 for dest_class in self._preserving_changes[src_class]:
@@ -998,7 +1012,7 @@ class DcmMetaExtension(Nifti1Extension):
                     self.get_class_dict(best_dest)[key] = deepcopy(vals)
             elif src_class[0] != 'global':
                 if sample_base == 'time':
-                    #Take a subset of vector slices
+                    # Take a subset of vector slices
                     n_slices = self.n_slices
                     start_idx = idx * n_slices
                     end_idx = start_idx + n_slices
@@ -1007,11 +1021,11 @@ class DcmMetaExtension(Nifti1Extension):
                             deepcopy(vals[start_idx:end_idx])
                         self._simplify(key)
                 else:
-                    #Time slices are unchanged
+                    # Time slices are unchanged
                     for key, vals in src_dict.items():
                         self.get_class_dict(src_class)[key] = deepcopy(vals)
             else:
-                #Take a subset of global slices
+                # Take a subset of global slices
                 for key, vals in src_dict.items():
                     subset_vals = \
                         other._global_slice_subset(key, sample_base, idx)
@@ -1022,8 +1036,8 @@ class DcmMetaExtension(Nifti1Extension):
         self_slc_norm = self.slice_normal
         other_slc_norm = other.slice_normal
 
-        #If we are not using slice meta data, temporarily remove it from the
-        #other dcmmeta object
+        # If we are not using slice meta data, temporarily remove it from the
+        # other dcmmeta object
         use_slices = (not self_slc_norm is None and
                       not other_slc_norm is None and
                       np.allclose(self_slc_norm, other_slc_norm))
@@ -1037,13 +1051,13 @@ class DcmMetaExtension(Nifti1Extension):
         for other_classes in other.get_valid_classes():
             other_keys = list(other.get_class_dict(other_classes).keys())
 
-            #Treat missing keys as if they were in global const and have a value
-            #of None
+            # Treat missing keys as if they were in global const and have a value
+            # of None
             if other_classes == ('global', 'const'):
                 other_keys += missing_keys
 
-            #When possible, reclassify our meta data so it matches the other
-            #classification
+            # When possible, reclassify our meta data so it matches the other
+            # classification
             for key in other_keys:
                 local_classes = self.get_classification(key)
                 if local_classes != other_classes:
@@ -1061,7 +1075,7 @@ class DcmMetaExtension(Nifti1Extension):
                                 break
                         self._change_class(key, best_dest)
 
-            #Insert new meta data and further reclassify as necessary
+            # Insert new meta data and further reclassify as necessary
             for key in other_keys:
                 if dim == self.slice_dim:
                     self._insert_slice(key, other)
@@ -1072,7 +1086,7 @@ class DcmMetaExtension(Nifti1Extension):
                 elif dim == 4:
                     self._insert_sample(key, other, 'vector')
 
-        #Restore per slice meta if needed
+        # Restore per slice meta if needed
         if not use_slices:
             for classes in other.get_valid_classes():
                 if classes[1] == 'slices':
@@ -1084,7 +1098,7 @@ class DcmMetaExtension(Nifti1Extension):
         other_vals = other._get_changed_class(key, classes, self.slice_dim)
 
 
-        #Handle some common / simple insertions with special cases
+        # Handle some common / simple insertions with special cases
         if classes == ('global', 'const'):
             if local_vals != other_vals:
                 for dest_base in ('time', 'vector', 'global'):
@@ -1100,7 +1114,7 @@ class DcmMetaExtension(Nifti1Extension):
         elif classes == ('time', 'slices'):
             local_vals.extend(other_vals)
         else:
-            #Default to putting in global slices and simplifying later
+            # Default to putting in global slices and simplifying later
             if classes != ('global', 'slices'):
                 self._change_class(key, ('global', 'slices'))
                 local_vals = self.get_class_dict(('global', 'slices'))[key]
@@ -1108,7 +1122,7 @@ class DcmMetaExtension(Nifti1Extension):
                                                       ('global', 'slices'),
                                                       self.slice_dim)
 
-            #Need to interleave slices from different volumes
+            # Need to interleave slices from different volumes
             n_slices = self.n_slices
             other_n_slices = other.n_slices
             shape = self.shape
@@ -1160,8 +1174,8 @@ class DcmMetaExtension(Nifti1Extension):
             shape = self.shape
             n_dims = len(shape)
             if sample_base == 'time' and n_dims == 5:
-                #Need to interleave values from the time points in each vector
-                #component
+                # Need to interleave values from the time points in each vector
+                # component
                 n_slices = self.n_slices
                 slices_per_vec = n_slices * shape[3]
                 oth_slc_per_vec = n_slices * other.shape[3]
@@ -1179,23 +1193,25 @@ class DcmMetaExtension(Nifti1Extension):
             else:
                 local_vals.extend(other_vals)
 
-#Add our extension to nibabel
+# Add our extension to nibabel
 nb.nifti1.extension_codes.add_codes(((dcm_meta_ecode,
                                       "dcmmeta",
                                       DcmMetaExtension),)
                                    )
 
+
 class MissingExtensionError(Exception):
-    '''Exception denoting that there is no DcmMetaExtension in the Nifti header.
-    '''
+    """Exception denoting that there is no DcmMetaExtension in the Nifti header.
+    """
     def __str__(self):
         return 'No dcmmeta extension found.'
 
+
 def patch_dcm_ds_is(dcm):
-    '''Convert all elements in `dcm` with VR of 'DS' or 'IS' to floats and ints.
+    """Convert all elements in `dcm` with VR of 'DS' or 'IS' to floats and ints.
     This is a hackish work around for the backwards incompatibility of pydicom
     0.9.7 and should not be needed once nibabel is updated.
-    '''
+    """
     for elem in dcm:
         if elem.VM == 1:
             if elem.VR in ('DS', 'IS'):
@@ -1220,7 +1236,7 @@ def patch_dcm_ds_is(dcm):
 
 
 class NiftiWrapper(object):
-    '''Wraps a Nifti1Image object containing a DcmMeta header extension.
+    """Wraps a Nifti1Image object containing a DcmMeta header extension.
     Provides access to the meta data and the ability to split or merge the
     data array while updating the meta data.
 
@@ -1239,7 +1255,7 @@ class NiftiWrapper(object):
 
     ValueError
         More than one valid DcmMetaExtension was found.
-    '''
+    """
 
     def __init__(self, nii_img, make_empty=False):
         self.nii_img = nii_img
@@ -1270,15 +1286,15 @@ class NiftiWrapper(object):
         self.meta_ext.check_valid()
 
     def __getitem__(self, key):
-        '''Get the value for the given meta data key. Only considers meta data
+        """Get the value for the given meta data key. Only considers meta data
         that is globally constant. To access varying meta data you must use the
-        method 'get_meta'.'''
+        method 'get_meta'."""
         return self.meta_ext.get_class_dict(('global', 'const'))[key]
 
     def meta_valid(self, classification):
-        '''Return true if the meta data with the given classification appears
+        """Return true if the meta data with the given classification appears
         to be valid for the wrapped Nifti image. Considers the shape and
-        orientation of the image and the meta data extension.'''
+        orientation of the image and the meta data extension."""
         if classification == ('global', 'const'):
             return True
 
@@ -1307,7 +1323,7 @@ class NiftiWrapper(object):
             return meta_shape[3:] == img_shape[3:] and slices_aligned
 
     def get_meta(self, key, index=None, default=None):
-        '''Return the meta data value for the provided `key`.
+        """Return the meta data value for the provided `key`.
 
         Parameters
         ----------
@@ -1330,23 +1346,23 @@ class NiftiWrapper(object):
         The per-sample and per-slice meta data will only be considered if the
         `samples_valid` and `slices_valid` methods return True (respectively),
         and an `index` is specified.
-        '''
-        #Get the value(s) and classification for the key
+        """
+        # Get the value(s) and classification for the key
         values, classes = self.meta_ext.get_values_and_class(key)
         if classes is None:
             return default
 
-        #Check if the value is constant
+        # Check if the value is constant
         if classes == ('global', 'const'):
             return values
 
-        #Check if the classification is valid
+        # Check if the classification is valid
         if not self.meta_valid(classes):
             return default
 
-        #If an index is provided check the varying values
+        # If an index is provided check the varying values
         if not index is None:
-            #Test if the index is valid
+            # Test if the index is valid
             shape = self.nii_img.get_shape()
             if len(index) != len(shape):
                 raise IndexError('Incorrect number of indices.')
@@ -1354,13 +1370,13 @@ class NiftiWrapper(object):
                 if not 0 <= ind_val < shape[dim]:
                     raise IndexError('Index is out of bounds.')
 
-            #First try per time/vector sample values
+            # First try per time/vector sample values
             if classes == ('time', 'samples'):
                 return values[index[3]]
             if classes == ('vector', 'samples'):
                 return values[index[4]]
 
-            #Finally, if aligned, try per-slice values
+            # Finally, if aligned, try per-slice values
             slice_dim = self.nii_img.get_header().get_dim_info()[2]
             n_slices = shape[slice_dim]
             if classes == ('global', 'slices'):
@@ -1380,8 +1396,8 @@ class NiftiWrapper(object):
         return default
 
     def remove_extension(self):
-        '''Remove the DcmMetaExtension from the header of nii_img. The
-        attribute `meta_ext` will still point to the extension.'''
+        """Remove the DcmMetaExtension from the header of nii_img. The
+        attribute `meta_ext` will still point to the extension."""
         hdr = self.nii_img.get_header()
         target_idx = None
         for idx, ext in enumerate(hdr.extensions):
@@ -1395,20 +1411,20 @@ class NiftiWrapper(object):
         hdr['vox_offset'] = 0
 
     def replace_extension(self, dcmmeta_ext):
-        '''Replace the DcmMetaExtension.
+        """Replace the DcmMetaExtension.
 
         Parameters
         ----------
         dcmmeta_ext : DcmMetaExtension
             The new DcmMetaExtension.
 
-        '''
+        """
         self.remove_extension()
         self.nii_img.get_header().extensions.append(dcmmeta_ext)
         self.meta_ext = dcmmeta_ext
 
     def split(self, dim=None):
-        '''Generate splits of the array and meta data along the specified
+        """Generate splits of the array and meta data along the specified
         dimension.
 
         Parameters
@@ -1423,13 +1439,13 @@ class NiftiWrapper(object):
             Generator which yields a NiftiWrapper result for each index
             along `dim`.
 
-        '''
+        """
         shape = self.nii_img.get_shape()
         data = self.nii_img.get_data()
         header = self.nii_img.get_header()
         slice_dim = header.get_dim_info()[2]
 
-        #If dim is None, choose the vector/time/slice dim in that order
+        # If dim is None, choose the vector/time/slice dim in that order
         if dim is None:
             dim = len(shape) - 1
             if dim == 2:
@@ -1437,8 +1453,8 @@ class NiftiWrapper(object):
                     raise ValueError("Slice dimension is not known")
                 dim = slice_dim
 
-        #If we are splitting on a spatial dimension, we need to update the
-        #translation
+        # If we are splitting on a spatial dimension, we need to update the
+        # translation
         trans_update = None
         if dim < 3:
             trans_update = header.get_best_affine()[:3, dim]
@@ -1446,7 +1462,7 @@ class NiftiWrapper(object):
         split_hdr = header.copy()
         slices = [slice(None)] * len(shape)
         for idx in range(shape[dim]):
-            #Grab the split data, get rid of trailing singular dimensions
+            # Grab the split data, get rid of trailing singular dimensions
             if dim >= 3 and dim == len(shape) - 1:
                 slices[dim] = idx
             else:
@@ -1454,7 +1470,7 @@ class NiftiWrapper(object):
 
             split_data = data[slices].copy()
 
-            #Update the translation in any affines if needed
+            # Update the translation in any affines if needed
             if not trans_update is None and idx != 0:
                 qform = split_hdr.get_qform()
                 if not qform is None:
@@ -1465,12 +1481,12 @@ class NiftiWrapper(object):
                     sform[:3, 3] += trans_update
                     split_hdr.set_sform(sform)
 
-            #Create the initial Nifti1Image object
+            # Create the initial Nifti1Image object
             split_nii = nb.Nifti1Image(split_data,
                                        split_hdr.get_best_affine(),
                                        header=split_hdr)
 
-            #Replace the meta data with the appropriate subset
+            # Replace the meta data with the appropriate subset
             meta_dim = dim
             if dim == slice_dim:
                 meta_dim = self.meta_ext.slice_dim
@@ -1481,7 +1497,7 @@ class NiftiWrapper(object):
             yield result
 
     def to_filename(self, out_path):
-        '''Write out the wrapped Nifti to a file
+        """Write out the wrapped Nifti to a file
 
         Parameters
         ----------
@@ -1491,24 +1507,24 @@ class NiftiWrapper(object):
         Notes
         -----
         Will check that the DcmMetaExtension is valid before writing the file.
-        '''
+        """
         self.meta_ext.check_valid()
         self.nii_img.to_filename(out_path)
 
     @classmethod
     def from_filename(klass, path):
-        '''Create a NiftiWrapper from a file.
+        """Create a NiftiWrapper from a file.
 
         Parameters
         ----------
         path : str
             The path to the Nifti file to load.
-        '''
+        """
         return klass(nb.load(path))
 
     @classmethod
     def from_dicom_wrapper(klass, dcm_wrp, meta_dict=None):
-        '''Create a NiftiWrapper from a nibabel DicomWrapper.
+        """Create a NiftiWrapper from a nibabel DicomWrapper.
 
         Parameters
         ----------
@@ -1519,17 +1535,17 @@ class NiftiWrapper(object):
             An optional dictionary of meta data extracted from `dcm_data`. See
             the `extract` module for generating this dict.
 
-        '''
+        """
         data = dcm_wrp.get_data()
 
-        #The Nifti patient space flips the x and y directions
+        # The Nifti patient space flips the x and y directions
         affine = np.dot(np.diag([-1., -1., 1., 1.]), dcm_wrp.get_affine())
 
-        #Make 2D data 3D
+        # Make 2D data 3D
         if len(data.shape) == 2:
             data = data.reshape(data.shape + (1,))
 
-        #Create the nifti image and set header data
+        # Create the nifti image and set header data
         nii_img = nb.nifti1.Nifti1Image(data, affine)
         hdr = nii_img.get_header()
         hdr.set_xyzt_units('mm', 'sec')
@@ -1546,7 +1562,7 @@ class NiftiWrapper(object):
                 dim_info['freq'] = 1
         hdr.set_dim_info(**dim_info)
 
-        #Embed the meta data extension
+        # Embed the meta data extension
         result = klass(nii_img, make_empty=True)
 
         result.meta_ext.reorient_transform = np.eye(4)
@@ -1557,7 +1573,7 @@ class NiftiWrapper(object):
 
     @classmethod
     def from_dicom(klass, dcm_data, meta_dict=None):
-        '''Create a NiftiWrapper from a single DICOM dataset.
+        """Create a NiftiWrapper from a single DICOM dataset.
 
         Parameters
         ----------
@@ -1568,13 +1584,13 @@ class NiftiWrapper(object):
             An optional dictionary of meta data extracted from `dcm_data`. See
             the `extract` module for generating this dict.
 
-        '''
+        """
         dcm_wrp = wrapper_from_data(dcm_data)
         return klass.from_dicom_wrapper(dcm_wrp, meta_dict)
 
     @classmethod
     def from_sequence(klass, seq, dim=None):
-        '''Create a NiftiWrapper by joining a sequence of NiftiWrapper objects
+        """Create a NiftiWrapper by joining a sequence of NiftiWrapper objects
         along the given dimension.
 
         Parameters
@@ -1591,7 +1607,7 @@ class NiftiWrapper(object):
         -------
         result : NiftiWrapper
             The merged NiftiWrapper with updated meta data.
-        '''
+        """
         n_inputs = len(seq)
         first_input = seq[0]
         first_nii = first_input.nii_img
@@ -1599,7 +1615,7 @@ class NiftiWrapper(object):
         shape = first_nii.shape
         affine = first_nii.get_affine().copy()
 
-        #If dim is None, choose a sane default
+        # If dim is None, choose a sane default
         if dim is None:
             if len(shape) == 3:
                 singular_dim = None
@@ -1619,7 +1635,7 @@ class NiftiWrapper(object):
             if dim < len(shape) and shape[dim] != 1:
                 raise ValueError('The dimension must be singular or not exist')
 
-        #Pull out the three axes vectors for validation of other input affines
+        # Pull out the three axes vectors for validation of other input affines
         axes = []
         for axis_idx in range(3):
             axis_vec = affine[:3, axis_idx]
@@ -1627,10 +1643,10 @@ class NiftiWrapper(object):
                 axis_vec = axis_vec.copy()
                 axis_vec /= np.sqrt(np.dot(axis_vec, axis_vec))
             axes.append(axis_vec)
-        #Pull out the translation
+        # Pull out the translation
         trans = affine[:3, 3]
 
-        #Determine the shape of the result data array and create it
+        # Determine the shape of the result data array and create it
         result_shape = list(shape)
         while dim >= len(result_shape):
             result_shape.append(1)
@@ -1640,14 +1656,15 @@ class NiftiWrapper(object):
                            for input_wrp in seq)
         result_data = np.empty(result_shape, dtype=result_dtype)
 
-        #Start with the header info from the first input
-        hdr_info = {'qform' : first_hdr.get_qform(),
-                    'qform_code' : first_hdr['qform_code'],
-                    'sform' : first_hdr.get_sform(),
-                    'sform_code' : first_hdr['sform_code'],
-                    'dim_info' : list(first_hdr.get_dim_info()),
-                    'xyzt_units' : list(first_hdr.get_xyzt_units()),
-                   }
+        # Start with the header info from the first input
+        hdr_info = {
+            'qform': first_hdr.get_qform(),
+            'qform_code': first_hdr['qform_code'],
+            'sform': first_hdr.get_sform(),
+            'sform_code': first_hdr['sform_code'],
+            'dim_info': list(first_hdr.get_dim_info()),
+            'xyzt_units': list(first_hdr.get_xyzt_units()),
+        }
 
         try:
             hdr_info['slice_duration'] = first_hdr.get_slice_duration()
@@ -1662,12 +1679,12 @@ class NiftiWrapper(object):
         except HeaderDataError:
             hdr_info['slice_times'] = None
 
-        #Fill the data array, check header consistency
+        # Fill the data array, check header consistency
         data_slices = [slice(None)] * len(result_shape)
         for dim_idx, dim_size in enumerate(result_shape):
             if dim_size == 1:
                 data_slices[dim_idx] = 0
-        last_trans = None #Keep track of the translation from last input
+        last_trans = None  # Keep track of the translation from last input
         for input_idx in range(n_inputs):
 
             input_wrp = seq[input_idx]
@@ -1675,19 +1692,19 @@ class NiftiWrapper(object):
             input_aff = input_nii.get_affine()
             input_hdr = input_nii.get_header()
 
-            #Check that the affines match appropriately
+            # Check that the affines match appropriately
             for axis_idx, axis_vec in enumerate(axes):
                 in_vec = input_aff[:3, axis_idx]
 
-                #If we are joining on this dimension
+                # If we are joining on this dimension
                 if axis_idx == dim:
-                    #Allow scaling difference as it will be updated later
+                    # Allow scaling difference as it will be updated later
                     in_vec = in_vec.copy()
                     in_vec /= np.sqrt(np.dot(in_vec, in_vec))
 
                     in_trans = input_aff[:3, 3]
                     if not last_trans is None:
-                        #Must be translated along the axis
+                        # Must be translated along the axis
                         trans_diff = in_trans - last_trans
                         if not np.allclose(trans_diff, 0.0):
                             trans_diff /= np.sqrt(np.dot(trans_diff, trans_diff))
@@ -1700,10 +1717,10 @@ class NiftiWrapper(object):
                             raise ValueError("Slices must be translated along the "
                                              "normal direction")
 
-                    #Update reference to last translation
+                    # Update reference to last translation
                     last_trans = in_trans
 
-                #Check that axis vectors match
+                # Check that axis vectors match
                 if not np.allclose(in_vec, axis_vec, atol=5e-4):
                     raise ValueError("Cannot join images with different "
                                      "orientations.")
@@ -1754,17 +1771,17 @@ class NiftiWrapper(object):
                 except HeaderDataError:
                     hdr_info['slice_times'] = None
 
-        #If we joined along a spatial dim, rescale the appropriate axis
+        # If we joined along a spatial dim, rescale the appropriate axis
         scaled_dim_dir = None
         if dim < 3:
             scaled_dim_dir = seq[1].nii_img.get_affine()[:3, 3] - trans
             affine[:3, dim] = scaled_dim_dir
 
-        #Create the resulting Nifti and wrapper
+        # Create the resulting Nifti and wrapper
         result_nii = nb.Nifti1Image(result_data, affine)
         result_hdr = result_nii.get_header()
 
-        #Update the header with any info that is consistent across inputs
+        # Update the header with any info that is consistent across inputs
         if hdr_info['qform'] is not None and hdr_info['qform_code'] is not None:
             if not scaled_dim_dir is None:
                 hdr_info['qform'][:3, dim] = scaled_dim_dir
@@ -1791,7 +1808,7 @@ class NiftiWrapper(object):
         if hdr_info['slice_times'] is not None:
             result_hdr.set_slice_times(hdr_info['slice_times'])
 
-        #Create the meta data extension and insert it
+        # Create the meta data extension and insert it
         seq_exts = [elem.meta_ext for elem in seq]
         result_ext = DcmMetaExtension.from_sequence(seq_exts,
                                                     dim,
