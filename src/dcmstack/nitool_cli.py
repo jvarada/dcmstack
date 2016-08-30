@@ -3,11 +3,15 @@ Command line interface for nitool.
 
 @author: moloney
 """
+from __future__ import division, absolute_import, unicode_literals
+
+
 import os
 import sys
 import argparse
 import nibabel as nb
 from .dcmmeta import NiftiWrapper, DcmMetaExtension, MissingExtensionError
+
 
 prog_descrip = "Work with extended Nifti files created by dcmstack"
 

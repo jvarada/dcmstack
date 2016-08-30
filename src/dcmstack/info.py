@@ -1,6 +1,8 @@
 """ Information for setup.py that we may also want to access in dcmstack. Can
 not import dcmstack.
 """
+from __future__ import division, absolute_import, unicode_literals
+
 import sys
 
 _version_major = 0
