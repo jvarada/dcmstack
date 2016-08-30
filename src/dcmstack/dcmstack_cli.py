@@ -3,6 +3,8 @@ Command line interface to dcmstack.
 
 @author: moloney
 """
+from __future__ import division, absolute_import, unicode_literals
+
 
 import os
 import sys
